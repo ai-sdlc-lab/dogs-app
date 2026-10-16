@@ -1,0 +1,43 @@
+# API container on kind (CI only). Health is the only route exercised; S3 is not reachable here.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dogs-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: dogs-api }
+  template:
+    metadata:
+      labels: { app: dogs-api }
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: api
+          image: dogs-api:ci
+          imagePullPolicy: Never
+          ports: [{ containerPort: 8080 }]
+          env:
+            - { name: DOGS_BUCKET, value: unused-in-kind }
+            - { name: PYTHONDONTWRITEBYTECODE, value: "1" }
+          readinessProbe:
+            httpGet: { path: /api/health, port: 8080 }
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { memory: 256Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dogs-api
+spec:
+  selector: { app: dogs-api }
+  ports: [{ port: 80, targetPort: 8080 }]
