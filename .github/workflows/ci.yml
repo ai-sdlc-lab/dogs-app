@@ -66,6 +66,8 @@ jobs:
           unzip -q tf.zip terraform && unzip -q tflint.zip tflint
           sudo install terraform tflint /usr/local/bin/
       - run: terraform fmt -check -recursive infra
+      - name: Placeholder Lambda zip (validate reads its hash; real zip comes from make build)
+        run: mkdir -p build && touch build/lambda.zip
       - run: terraform -chdir=infra init -backend=false -input=false
       - run: terraform -chdir=infra validate
       - run: tflint --chdir=infra
