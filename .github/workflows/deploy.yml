@@ -1,0 +1,86 @@
+name: deploy
+
+on:
+  push:
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    environment: dev # only main may deploy here (lab-admin BL-09); the role trusts only this environment
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AWS_REGION: eu-north-1
+      ROLE_ARN: arn:aws:iam::992382408037:role/sdlc-lab-gh-dogs-app-dev
+      TERRAFORM_VERSION: 1.16.6
+      TERRAFORM_SHA256: 38034b38d03096399a7a1264a14561a8029b2b496fd1f169452656e53968f1b7
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+      - name: Install terraform (pinned, checksum-verified)
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          curl -fsSLo tf.zip "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip"
+          echo "${TERRAFORM_SHA256}  tf.zip" | sha256sum -c -
+          unzip -q tf.zip terraform && sudo install terraform /usr/local/bin/
+
+      - run: make build PY=python
+
+      # OIDC -> STS with the runner's AWS CLI; no third-party action needed (BL-01).
+      - name: Assume dev role via OIDC
+        run: |
+          set -euo pipefail
+          umask 077
+          token_file="$RUNNER_TEMP/oidc.jwt"
+          curl -fsS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r .value > "$token_file"
+          echo "::add-mask::$(cat "$token_file")"
+          # Evidence for BASELINE BL-10: the claims GitHub actually issued (not secret).
+          python3 - "$token_file" <<'PY'
+          import base64, json, sys
+          p = open(sys.argv[1]).read().split(".")[1]
+          c = json.loads(base64.urlsafe_b64decode(p + "=" * (-len(p) % 4)))
+          print("OIDC claims:", json.dumps({k: c.get(k) for k in ("sub", "aud", "environment", "ref", "job_workflow_ref")}))
+          PY
+          creds=$(aws sts assume-role-with-web-identity --role-arn "$ROLE_ARN" \
+            --role-session-name "gh-${GITHUB_RUN_ID}" --web-identity-token "file://$token_file" \
+            --duration-seconds 3600 --query Credentials --output json)
+          rm -f "$token_file"
+          for k in AccessKeyId SecretAccessKey SessionToken; do echo "::add-mask::$(jq -r ".$k" <<<"$creds")"; done
+          {
+            echo "AWS_ACCESS_KEY_ID=$(jq -r .AccessKeyId <<<"$creds")"
+            echo "AWS_SECRET_ACCESS_KEY=$(jq -r .SecretAccessKey <<<"$creds")"
+            echo "AWS_SESSION_TOKEN=$(jq -r .SessionToken <<<"$creds")"
+          } >> "$GITHUB_ENV"
+          aws sts get-caller-identity --query Arn --output text
+
+      - run: make plan
+      - run: make apply
+      - run: make seed
+
+      - name: Smoke test
+        run: |
+          set -euo pipefail
+          url=$(terraform -chdir=infra output -raw url)
+          curl -fsS "${url}api/health"
+          dogs=$(curl -fsS "${url}api/dogs")
+          n=$(jq length <<<"$dogs"); echo "dogs: $n"; [ "$n" -ge 1 ]
+          curl -fsS -o /dev/null "$(jq -r '.[0].url' <<<"$dogs")" # presigned image URL works
+          curl -fsS "$url" | grep -q '<title>Dogs</title>'
+          echo "### Deployed: $url" >> "$GITHUB_STEP_SUMMARY"
