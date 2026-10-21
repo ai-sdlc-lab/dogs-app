@@ -68,7 +68,9 @@ jobs:
             echo "AWS_SECRET_ACCESS_KEY=$(jq -r .SecretAccessKey <<<"$creds")"
             echo "AWS_SESSION_TOKEN=$(jq -r .SessionToken <<<"$creds")"
           } >> "$GITHUB_ENV"
-          aws sts get-caller-identity --query Arn --output text
+
+      # Separate step: $GITHUB_ENV only reaches later steps.
+      - run: aws sts get-caller-identity --query Arn --output text
 
       - run: make plan
       - run: make apply
