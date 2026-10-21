@@ -54,6 +54,19 @@ def test_unknown_or_invalid_breed_is_404(client, breed):
     assert client.get(f"/api/dogs/{breed}").status_code == 404
 
 
+def test_presigned_urls_use_regional_endpoint(monkeypatch):
+    for k, v in {"AWS_REGION": "eu-north-1", "AWS_ACCESS_KEY_ID": "x", "AWS_SECRET_ACCESS_KEY": "y"}.items():
+        monkeypatch.setenv(k, v)
+    url = main.s3.__wrapped__().generate_presigned_url(
+        "get_object",
+        Params={"Bucket": "sdlc-lab-app-dogs-dev-992382408037", "Key": "dogs/pug/1.jpg"},
+        ExpiresIn=60,
+    )
+    assert url.startswith(
+        "https://sdlc-lab-app-dogs-dev-992382408037.s3.eu-north-1.amazonaws.com/dogs/pug/1.jpg?"
+    )
+
+
 def test_no_api_docs_exposed(client):
     assert client.get("/docs").status_code == 404
     assert client.get("/openapi.json").status_code == 404
