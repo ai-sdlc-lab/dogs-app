@@ -18,7 +18,15 @@ app = FastAPI(title="dogs-app", docs_url=None, redoc_url=None, openapi_url=None)
 
 @cache
 def s3():
-    return boto3.client("s3", config=Config(signature_version="s3v4"))
+    # Regional endpoint: presigned URLs on the global s3.amazonaws.com host get a
+    # TemporaryRedirect for new buckets, which browsers' <img> requests don't survive.
+    region = os.environ.get("AWS_REGION", "eu-north-1")
+    return boto3.client(
+        "s3",
+        region_name=region,
+        endpoint_url=f"https://s3.{region}.amazonaws.com",
+        config=Config(signature_version="s3v4", s3={"addressing_style": "virtual"}),
+    )
 
 
 def list_dogs(breed: str | None = None) -> list[dict]:
