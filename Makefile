@@ -7,6 +7,7 @@ TF := terraform -chdir=infra
 
 test:
 	cd api && $(PY) -m pytest -q
+	$(PY) -m pytest -q .claude/hooks
 
 lint:
 	cd api && ruff check . && ruff format --check .
