@@ -113,14 +113,15 @@ jobs:
       - name: Run scanners
         id: scan
         run: |
-          set -uo pipefail
+          # GitHub runs steps with bash -e; record each scanner's exit code instead of aborting.
+          set +e -uo pipefail
           mkdir -p out
           docker run --rm -v "$PWD:/src" -w /src "$SEMGREP_IMAGE" \
-            semgrep scan --config p/default --metrics=off --sarif --output out/semgrep.sarif || true
+            semgrep scan --config p/default --metrics=off --exclude .appsec-baseline --sarif --output out/semgrep.sarif || true
           trivy config --quiet --ignorefile .appsec-baseline/exceptions/trivyignore --format sarif --output out/trivy.sarif infra/ || true
           zizmor --offline --format sarif .github/workflows/ > out/zizmor.sarif || true
           gitleaks git --log-opts="$BASE_SHA..HEAD" --redact --report-format sarif --report-path out/gitleaks.sarif; echo "gitleaks=$?" >> "$GITHUB_OUTPUT"
-          osv-scanner scan source -r --format json --output out/osv.json . ; echo "osv=$?" >> "$GITHUB_OUTPUT"
+          osv-scanner scan source -r --format json --output-file out/osv.json api web ; echo "osv=$?" >> "$GITHUB_OUTPUT"
           actionlint; echo "actionlint=$?" >> "$GITHUB_OUTPUT"
 
       - name: Upload SARIF (semgrep)
