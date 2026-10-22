@@ -16,7 +16,7 @@ concurrency:
 jobs:
   requirements:
     name: security/requirements
-    uses: ai-sdlc-lab/appsec-baseline/.github/workflows/security-review.yml@1e86b1119142139a563bbd8c667f29eccc1bf61e
+    uses: ai-sdlc-lab/appsec-baseline/.github/workflows/security-review.yml@263cf24eb3c6a97ebe22ce0d0f01378e8ccdab03
     permissions:
       contents: read
       id-token: write
@@ -32,7 +32,7 @@ jobs:
 
   threat-model:
     name: security/threat-model
-    uses: ai-sdlc-lab/appsec-baseline/.github/workflows/security-review.yml@1e86b1119142139a563bbd8c667f29eccc1bf61e
+    uses: ai-sdlc-lab/appsec-baseline/.github/workflows/security-review.yml@263cf24eb3c6a97ebe22ce0d0f01378e8ccdab03
     permissions:
       contents: read
       id-token: write
@@ -48,7 +48,7 @@ jobs:
 
   workflow-iac:
     name: security/workflow-iac
-    uses: ai-sdlc-lab/appsec-baseline/.github/workflows/security-review.yml@1e86b1119142139a563bbd8c667f29eccc1bf61e
+    uses: ai-sdlc-lab/appsec-baseline/.github/workflows/security-review.yml@263cf24eb3c6a97ebe22ce0d0f01378e8ccdab03
     permissions:
       contents: read
       id-token: write
@@ -80,7 +80,10 @@ jobs:
       ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
       SEMGREP_IMAGE: semgrep/semgrep@sha256:3db5c7af55eb1f512eac0abf0ab69a97b52c74b5e9a27314c221aee1a78d7ab2
       BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      APPSEC_SHA: ${{ vars.APPSEC_SHA }}
     steps:
+      - name: Require the pinned AppSec baseline
+        run: '[[ "$APPSEC_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::APPSEC_SHA not set"; exit 1; }'
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -118,7 +121,7 @@ jobs:
           mkdir -p out
           docker run --rm -v "$PWD:/src" -w /src "$SEMGREP_IMAGE" \
             semgrep scan --config p/default --metrics=off --sarif --output out/semgrep.sarif || true
-          trivy config --quiet --format sarif --output out/trivy.sarif infra/ || true
+          trivy config --quiet --ignorefile .appsec-baseline/exceptions/trivyignore --format sarif --output out/trivy.sarif infra/ || true
           zizmor --offline --format sarif .github/workflows/ > out/zizmor.sarif || true
           gitleaks git --log-opts="$BASE_SHA..HEAD" --redact --report-format sarif --report-path out/gitleaks.sarif; echo "gitleaks=$?" >> "$GITHUB_OUTPUT"
           osv-scanner scan source -r --format json --output out/osv.json . ; echo "osv=$?" >> "$GITHUB_OUTPUT"

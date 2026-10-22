@@ -90,7 +90,7 @@ jobs:
 
   security-tester:
     needs: [dast]
-    uses: ai-sdlc-lab/appsec-baseline/.github/workflows/security-review.yml@1e86b1119142139a563bbd8c667f29eccc1bf61e
+    uses: ai-sdlc-lab/appsec-baseline/.github/workflows/security-review.yml@263cf24eb3c6a97ebe22ce0d0f01378e8ccdab03
     permissions:
       contents: read
       id-token: write
