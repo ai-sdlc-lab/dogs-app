@@ -1,6 +1,6 @@
 # dogs-app
 
-Read-only dog gallery (FastAPI on Lambda + Vite/TypeScript, S3 images). Architecture: `docs/architecture.md`. Review passes: `REVIEW.md`.
+Read-only dog gallery (FastAPI on Lambda + Vite/TypeScript, S3 images). Architecture: `docs/architecture.md`. Pipeline: `docs/pipeline.md`. Review passes: `REVIEW.md`.
 
 ## Commands
 - `make test` · `make lint` · `make build` (Lambda zip in `build/`)
