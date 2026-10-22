@@ -7,6 +7,7 @@ TF := terraform -chdir=infra
 
 test:
 	cd api && $(PY) -m pytest -q
+	$(PY) -m pytest -q .claude/hooks
 
 lint:
 	cd api && ruff check . && ruff format --check .
@@ -18,7 +19,7 @@ build:
 	cd web && npm ci && npm run build
 	rm -rf build && mkdir -p build/lambda
 	$(PY) -m pip install -q --target build/lambda --platform manylinux2014_aarch64 \
-		--implementation cp --python-version 3.14 --only-binary=:all: -r api/requirements.txt
+		--implementation cp --python-version 3.14 --only-binary=:all: --require-hashes -r api/requirements.txt
 	cp -R api/app build/lambda/app
 	cp -R web/dist build/lambda/web
 	cd build/lambda && find . -name '__pycache__' -prune -exec rm -rf {} + && zip -qr ../lambda.zip .

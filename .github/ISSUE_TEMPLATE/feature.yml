@@ -1,0 +1,33 @@
+name: Feature request
+description: Propose a feature. A maintainer starts the spec chain by adding the `feature` label.
+title: "[feature] "
+labels: ["feature-request"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What
+      description: What should the feature do? Behaviour, not implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: who
+    attributes:
+      label: Who
+      description: Who uses it (anonymous visitor, signed-in user, admin, another service)?
+    validations:
+      required: true
+  - type: textarea
+    id: data
+    attributes:
+      label: Data handled
+      description: What data does it accept, store or show? Is any of it personal or sensitive?
+    validations:
+      required: true
+  - type: textarea
+    id: trust
+    attributes:
+      label: Trust assumptions
+      description: What do we assume about callers, inputs and dependencies? What must we not trust?
+    validations:
+      required: true

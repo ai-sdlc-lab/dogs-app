@@ -1,5 +1,9 @@
 name: deploy
 
+# main → build → DAST (ZAP on the release in kind) → AI security tester + gate → deploy.
+# Deploy waits for the tester (decision 2026-10-21). The tester runs from appsec-baseline's
+# reusable workflow on its protected main branch.
+
 on:
   push:
     branches: [main]
@@ -10,18 +14,16 @@ concurrency:
   group: deploy-dev
   cancel-in-progress: false
 
+env:
+  TERRAFORM_VERSION: 1.16.6
+  TERRAFORM_SHA256: 38034b38d03096399a7a1264a14561a8029b2b496fd1f169452656e53968f1b7
+
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-24.04
-    environment: dev # only main may deploy here (lab-admin BL-09); the role trusts only this environment
+    timeout-minutes: 15
     permissions:
       contents: read
-      id-token: write
-    env:
-      AWS_REGION: eu-north-1
-      ROLE_ARN: arn:aws:iam::992382408037:role/sdlc-lab-gh-dogs-app-dev
-      TERRAFORM_VERSION: 1.16.6
-      TERRAFORM_SHA256: 38034b38d03096399a7a1264a14561a8029b2b496fd1f169452656e53968f1b7
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -32,6 +34,97 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: "24"
+      - run: make build PY=python
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: lambda-zip
+          path: build/lambda.zip
+          retention-days: 7
+
+  dast:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      KIND_VERSION: v0.33.0
+      KIND_SHA256: aee6151561422756b764a4ae28e7f44cda5af5a9eead3cc9985112b1de8d8e0d
+      KUBECTL_VERSION: v1.37.1
+      KUBECTL_SHA256: 65691ff77eb6fa44c908b77a1082c9f092c3b9733b5cefabec0d1104890e21a8
+      ZAP_IMAGE: ghcr.io/zaproxy/zaproxy@sha256:5ccfff9a411743ab2615136a2edd7416bec9ce41572fa94e935df38c14adb2b6
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install kind and kubectl (pinned, checksum-verified)
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          curl -fsSLo kind "https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64"
+          echo "${KIND_SHA256}  kind" | sha256sum -c -
+          curl -fsSLo kubectl "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
+          echo "${KUBECTL_SHA256}  kubectl" | sha256sum -c -
+          sudo install kind kubectl /usr/local/bin/
+      - name: Deploy the release container to kind
+        run: |
+          set -euo pipefail
+          docker build -t dogs-api:ci api
+          kind create cluster --wait 120s
+          kind load docker-image dogs-api:ci
+          kubectl apply -f k8s/
+          kubectl rollout status deploy/dogs-api --timeout=120s
+          kubectl port-forward svc/dogs-api 8080:80 >/dev/null 2>&1 &
+          for _ in $(seq 1 15); do curl -fsS localhost:8080/api/health && break; sleep 2; done
+      - name: ZAP baseline (passive scan)
+        run: |
+          set -uo pipefail
+          mkdir -p zap && chmod 777 zap
+          docker run --rm --network host -v "$PWD/zap:/zap/wrk:rw" "$ZAP_IMAGE" \
+            zap-baseline.py -t http://127.0.0.1:8080/api/health -J zap.json -I
+          test -s zap/zap.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: zap-report
+          path: zap/zap.json
+          retention-days: 30
+
+  security-tester:
+    needs: [dast]
+    uses: ai-sdlc-lab/appsec-baseline/.github/workflows/security-review.yml@main
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+      actions: read
+    with:
+      reviewer: security-tester
+      model: ${{ vars.TESTER_MODEL }}
+      zap_artifact: zap-report
+      anthropic_organization_id: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
+      anthropic_federation_rule_id: ${{ vars.ANTHROPIC_REVIEW_RULE_ID }}
+      anthropic_service_account_id: ${{ vars.ANTHROPIC_REVIEW_SERVICE_ACCOUNT_ID }}
+      anthropic_workspace_id: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
+
+  deploy:
+    needs: [build, security-tester]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: dev # only main may deploy here (lab-admin BL-09); the role trusts only this environment
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AWS_REGION: eu-north-1
+      ROLE_ARN: arn:aws:iam::992382408037:role/sdlc-lab-gh-dogs-app-dev
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Use the tested build
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: lambda-zip
+          path: build
       - name: Install terraform (pinned, checksum-verified)
         run: |
           set -euo pipefail
@@ -39,8 +132,6 @@ jobs:
           curl -fsSLo tf.zip "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip"
           echo "${TERRAFORM_SHA256}  tf.zip" | sha256sum -c -
           unzip -q tf.zip terraform && sudo install terraform /usr/local/bin/
-
-      - run: make build PY=python
 
       # OIDC -> STS with the runner's AWS CLI; no third-party action needed (BL-01).
       - name: Assume dev role via OIDC

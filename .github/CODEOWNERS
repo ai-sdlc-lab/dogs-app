@@ -1,0 +1,9 @@
+# Changes to agent instructions, workflows, infrastructure and reviewer-owned
+# security artifacts need the owner's review (BASELINE, playbook ATK-02/ATK-09).
+/.claude/                               @nkalexiou
+/CLAUDE.md                              @nkalexiou
+/REVIEW.md                              @nkalexiou
+/.github/                               @nkalexiou
+/infra/                                 @nkalexiou
+/docs/specs/**/threat-model.md          @nkalexiou
+/docs/specs/**/security-traceability.md @nkalexiou

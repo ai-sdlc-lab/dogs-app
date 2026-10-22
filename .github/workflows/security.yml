@@ -1,0 +1,195 @@
+name: security
+
+# Per-PR security checks. AI reviewers run from appsec-baseline's reusable workflow on its
+# protected main branch; the Anthropic federation rule only trusts that workflow from main.
+
+on:
+  pull_request:
+
+permissions: {}
+
+concurrency:
+  group: security-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  requirements:
+    name: security/requirements
+    uses: ai-sdlc-lab/appsec-baseline/.github/workflows/security-review.yml@main
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+      actions: read
+    with:
+      reviewer: security-requirements-auditor
+      model: ${{ vars.REVIEWER_MODEL }}
+      anthropic_organization_id: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
+      anthropic_federation_rule_id: ${{ vars.ANTHROPIC_REVIEW_RULE_ID }}
+      anthropic_service_account_id: ${{ vars.ANTHROPIC_REVIEW_SERVICE_ACCOUNT_ID }}
+      anthropic_workspace_id: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
+
+  threat-model:
+    name: security/threat-model
+    uses: ai-sdlc-lab/appsec-baseline/.github/workflows/security-review.yml@main
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+      actions: read
+    with:
+      reviewer: security-architect
+      model: ${{ vars.ARCHITECT_MODEL }}
+      anthropic_organization_id: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
+      anthropic_federation_rule_id: ${{ vars.ANTHROPIC_REVIEW_RULE_ID }}
+      anthropic_service_account_id: ${{ vars.ANTHROPIC_REVIEW_SERVICE_ACCOUNT_ID }}
+      anthropic_workspace_id: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
+
+  workflow-iac:
+    name: security/workflow-iac
+    uses: ai-sdlc-lab/appsec-baseline/.github/workflows/security-review.yml@main
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+      actions: read
+    with:
+      reviewer: workflow-iac-reviewer
+      model: ${{ vars.REVIEWER_MODEL }}
+      anthropic_organization_id: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
+      anthropic_federation_rule_id: ${{ vars.ANTHROPIC_REVIEW_RULE_ID }}
+      anthropic_service_account_id: ${{ vars.ANTHROPIC_REVIEW_SERVICE_ACCOUNT_ID }}
+      anthropic_workspace_id: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
+
+  scanners:
+    name: scanners
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write # upload SARIF to code scanning
+    env:
+      OSV_VERSION: v2.7.0
+      OSV_SHA256: 160c6253e2922e9e0a6a9771c5c4c40a4b3c6090b34a3cdd5e80c96cc2e4218b
+      GITLEAKS_VERSION: 8.30.1
+      GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+      TRIVY_VERSION: 0.76.1
+      TRIVY_SHA256: c7cbe3137fb8a48a17574bede3dd6beb16742d1e9772929940fc90082c39d9c0
+      ACTIONLINT_VERSION: 1.7.12
+      ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+      SEMGREP_IMAGE: semgrep/semgrep@sha256:3db5c7af55eb1f512eac0abf0ab69a97b52c74b5e9a27314c221aee1a78d7ab2
+      BASE_SHA: ${{ github.event.pull_request.base.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ai-sdlc-lab/appsec-baseline
+          ref: main # AppSec's protected branch
+          path: .appsec-baseline
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+
+      - name: Install scanners (pinned, checksum-verified)
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          curl -fsSLo osv-scanner "https://github.com/google/osv-scanner/releases/download/${OSV_VERSION}/osv-scanner_linux_amd64"
+          echo "${OSV_SHA256}  osv-scanner" | sha256sum -c -
+          curl -fsSLo gitleaks.tgz "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  gitleaks.tgz" | sha256sum -c -
+          curl -fsSLo trivy.tgz "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          echo "${TRIVY_SHA256}  trivy.tgz" | sha256sum -c -
+          curl -fsSLo actionlint.tgz "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          echo "${ACTIONLINT_SHA256}  actionlint.tgz" | sha256sum -c -
+          tar -xzf gitleaks.tgz gitleaks && tar -xzf trivy.tgz trivy && tar -xzf actionlint.tgz actionlint
+          sudo install osv-scanner gitleaks trivy actionlint /usr/local/bin/
+          pip install --quiet zizmor==1.31.1 jsonschema==4.26.0
+
+      - name: Run scanners
+        id: scan
+        run: |
+          # GitHub runs steps with bash -e; record each scanner's exit code instead of aborting.
+          set +e -uo pipefail
+          mkdir -p out
+          docker run --rm -v "$PWD:/src" -w /src "$SEMGREP_IMAGE" \
+            semgrep scan --config p/default --metrics=off --exclude .appsec-baseline --sarif --output out/semgrep.sarif || true
+          trivy config --quiet --ignorefile .appsec-baseline/exceptions/trivyignore --format sarif --output out/trivy.sarif infra/ || true
+          zizmor --offline --format sarif .github/workflows/ > out/zizmor.sarif || true
+          gitleaks git --log-opts="$BASE_SHA..HEAD" --redact --report-format sarif --report-path out/gitleaks.sarif; echo "gitleaks=$?" >> "$GITHUB_OUTPUT"
+          osv-scanner scan source -r --format json --output-file out/osv.json api web ; echo "osv=$?" >> "$GITHUB_OUTPUT"
+          actionlint; echo "actionlint=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Upload SARIF (semgrep)
+        if: always() && hashFiles('out/semgrep.sarif') != ''
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
+        with:
+          sarif_file: out/semgrep.sarif
+          category: semgrep
+      - name: Upload SARIF (trivy)
+        if: always() && hashFiles('out/trivy.sarif') != ''
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
+        with:
+          sarif_file: out/trivy.sarif
+          category: trivy
+      - name: Upload SARIF (zizmor)
+        if: always() && hashFiles('out/zizmor.sarif') != ''
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
+        with:
+          sarif_file: out/zizmor.sarif
+          category: zizmor
+      - name: Upload SARIF (gitleaks)
+        if: always() && hashFiles('out/gitleaks.sarif') != ''
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
+        with:
+          sarif_file: out/gitleaks.sarif
+          category: gitleaks
+
+      - name: Decide
+        env:
+          GITLEAKS_RC: ${{ steps.scan.outputs.gitleaks }}
+          OSV_RC: ${{ steps.scan.outputs.osv }}
+          ACTIONLINT_RC: ${{ steps.scan.outputs.actionlint }}
+        run: |
+          set -uo pipefail
+          fail=0
+          [[ "$GITLEAKS_RC" == 0 ]] || { echo "::error::gitleaks found secrets (SR-026)"; fail=1; }
+          [[ "$ACTIONLINT_RC" == 0 ]] || { echo "::error::actionlint failed (SR-030)"; fail=1; }
+          # SR-027: block known vulnerabilities with CVSS >= 7.0. osv-scanner exits 1 when it finds any.
+          if [[ "$OSV_RC" == 1 ]]; then
+            high=$(jq '[.results[]?.packages[]?.groups[]?.max_severity | select(. != null and . != "") | tonumber | select(. >= 7)] | length' out/osv.json) \
+              || { echo "::error::cannot parse OSV report"; fail=1; high=0; }
+            [[ "$high" == 0 ]] || { echo "::error::$high dependency vulnerabilities with CVSS >= 7 (SR-027)"; fail=1; }
+          elif [[ "$OSV_RC" != 0 ]]; then
+            echo "::error::osv-scanner error ($OSV_RC)"; fail=1
+          fi
+          # Semgrep, Trivy, zizmor: error-level SARIF results block; missing or invalid SARIF escalates.
+          python3 .appsec-baseline/gate/security_gate.py --sarif out/semgrep.sarif --sarif out/trivy.sarif \
+            --sarif out/zizmor.sarif --summary "$GITHUB_STEP_SUMMARY" || fail=1
+          exit $fail
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: scanners
+          path: out/
+          retention-days: 30
+
+  # Single required check aggregating everything above.
+  security-gate:
+    name: security-gate
+    if: always()
+    needs: [requirements, threat-model, workflow-iac, scanners]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "$RESULTS"
+          for r in $RESULTS; do [ "$r" = success ] || exit 1; done

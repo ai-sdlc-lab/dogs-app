@@ -1,0 +1,8 @@
+# Our own reusable workflows (appsec-baseline) are trusted by protected branch;
+# everything else must be pinned by commit SHA (SR-027).
+rules:
+  unpinned-uses:
+    config:
+      policies:
+        "ai-sdlc-lab/*": ref-pin
+        "*": hash-pin
