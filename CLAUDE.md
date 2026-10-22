@@ -8,7 +8,7 @@ Read-only dog gallery (FastAPI on Lambda + Vite/TypeScript, S3 images). Architec
 
 ## How features are built
 Every feature starts as `docs/specs/<feature>/intent.md` from the appsec-baseline template, then `spec.md`, then `plan.md`, then code: one PR per artifact. Never skip a stage or combine stages.
-- Templates and **security requirements** (SR-001…SR-031) live in `ai-sdlc-lab/appsec-baseline` at the commit pinned in the repo variable `APPSEC_SHA`. Every applicable requirement must be addressed in the spec and mapped to a plan step and a test. Use the exact values the requirements give (limits, algorithms, headers, log fields).
+- Templates and **security requirements** (SR-001…SR-031) live in `ai-sdlc-lab/appsec-baseline` (branch `main`). Every applicable requirement must be addressed in the spec and mapped to a plan step and a test. Use the exact values the requirements give (limits, algorithms, headers, log fields).
 - Specs state behaviour and numbers, not implementation.
 
 ## Rules

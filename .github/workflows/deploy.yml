@@ -2,7 +2,7 @@ name: deploy
 
 # main → build → DAST (ZAP on the release in kind) → AI security tester + gate → deploy.
 # Deploy waits for the tester (decision 2026-10-21). The tester runs from appsec-baseline's
-# reusable workflow at the pinned commit; bump with security.yml, APPSEC_SHA and the rule.
+# reusable workflow on its protected main branch.
 
 on:
   push:
@@ -90,7 +90,7 @@ jobs:
 
   security-tester:
     needs: [dast]
-    uses: ai-sdlc-lab/appsec-baseline/.github/workflows/security-review.yml@83e8a9bbe18c53e00e7b72aee8576197f4861a71
+    uses: ai-sdlc-lab/appsec-baseline/.github/workflows/security-review.yml@main
     permissions:
       contents: read
       id-token: write

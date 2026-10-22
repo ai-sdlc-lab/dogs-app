@@ -30,13 +30,11 @@ jobs:
     env:
       STAGE: ${{ github.event.label.name }}
       ISSUE: ${{ github.event.issue.number }}
-      APPSEC_SHA: ${{ vars.APPSEC_SHA }}
       MODEL: ${{ vars.AUTHOR_MODEL }}
     steps:
       - name: Validate configuration
         run: |
           set -euo pipefail
-          [[ "$APPSEC_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::APPSEC_SHA not set"; exit 1; }
           [[ "$MODEL" =~ ^claude-(opus|sonnet|haiku|fable)-[0-9]+(-[0-9]+)*$ ]] || { echo "::error::AUTHOR_MODEL not allowed"; exit 1; }
           [[ "$ISSUE" =~ ^[0-9]+$ ]]
 
@@ -46,7 +44,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: ai-sdlc-lab/appsec-baseline
-          ref: ${{ vars.APPSEC_SHA }}
+          ref: main # AppSec's protected branch
           path: .appsec-baseline
           persist-credentials: false
 

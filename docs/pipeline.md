@@ -8,7 +8,7 @@ A plain-language guide to the automation around dogs-app: what runs, when, with 
 |---|---|
 | **Workflow** | A YAML file under `.github/workflows/` that GitHub Actions runs when something happens (a PR is opened, code is merged, an issue is labelled). |
 | **Job** | One unit of work inside a workflow, run on a fresh GitHub machine (a *runner*). Each job reports a **check** (green/red) on the PR or commit. |
-| **Reusable workflow** | A workflow that never starts on its own; other workflows *call* it, like a function. Ours lives in appsec-baseline and is called at a fixed commit. |
+| **Reusable workflow** | A workflow that never starts on its own; other workflows *call* it, like a function. Ours lives in appsec-baseline and is called from its protected `main` branch. |
 | **Required check** | A check the ruleset demands before a PR can merge. Checks belong to a specific **commit**: the newest commit of a PR must have them all green. |
 | **`GITHUB_TOKEN`** | The short-lived token GitHub gives every job. By GitHub's design, anything it does (a commit, a label, a comment) **does not start other workflows**, which prevents endless loops. |
 | **Claude GitHub App token** | The token `claude-code-action` gets for the Claude app (`claude[bot]`). Its actions *do* start workflows. |
@@ -32,7 +32,7 @@ PR opened/updated
  ├─ ci.yml ─────────────────────────────────────────────► check: ci
  └─ security.yml
      ├─ security/requirements ─┐
-     ├─ security/threat-model ─┤ each calls appsec-baseline security-review.yml@<pinned commit>
+     ├─ security/threat-model ─┤ each calls appsec-baseline security-review.yml@main
      ├─ security/workflow-iac ─┘   → agent (read-only) → redact → gate → PR comment
      ├─ scanners: Semgrep, OSV-Scanner, gitleaks, Trivy, zizmor, actionlint → gate
      └─ security-gate (all of the above green?) ──────────► check: security-gate
@@ -63,10 +63,10 @@ Anthropic gives a Claude token only to jobs whose GitHub-signed identity matches
 
 | Rule | Matches | Used by |
 |---|---|---|
-| **A, reviewers** | dogs-app repository ID **and** `job_workflow_sha` = the pinned commit of appsec-baseline's `security-review.yml` | requirements auditor, security architect, workflow/IaC reviewer, security tester (four agents, one workflow file) |
+| **A, reviewers** | any repository of the org **and** `job_workflow_ref` = appsec-baseline's `security-review.yml` on `main` | requirements auditor, security architect, workflow/IaC reviewer, security tester (four agents, one workflow file) |
 | **B, author** | dogs-app repository ID, `main`, event `issues`, `workflow_ref` = dogs-app `author.yml` on `main` | the author agent |
 
-A PR can't satisfy either rule with modified code: rule A needs AppSec's file at the pinned commit (which lives in another repository), and rule B needs the workflow as it is on `main` (changing it requires a merge, which requires your review).
+A PR can't satisfy either rule with modified code: rule A needs AppSec's file from appsec-baseline `main` (another repository, changed only with your approval), and rule B needs the workflow as it is on `main` (changing it requires a merge, which requires your review).
 
 ## Design choices
 
