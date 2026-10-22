@@ -120,9 +120,11 @@ jobs:
           EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
         run: |
           mkdir -p out
-          [[ -f "$EXECUTION_FILE" ]] && jq --arg m "$MODEL" --arg s "$STAGE" \
-            '{agent: "author", stage: $s, model: $m} + ([.[] | select(.type? == "result")] | last | {total_cost_usd, duration_ms, num_turns, usage})' \
-            "$EXECUTION_FILE" > out/metrics.json || true
+          if [[ -f "$EXECUTION_FILE" ]]; then
+            jq --arg m "$MODEL" --arg s "$STAGE" \
+              '{agent: "author", stage: $s, model: $m} + ([.[] | select(.type? == "result")] | last | {total_cost_usd, duration_ms, num_turns, usage})' \
+              "$EXECUTION_FILE" > out/metrics.json || echo "::warning::could not parse usage metrics"
+          fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
