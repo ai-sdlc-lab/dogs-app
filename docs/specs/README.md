@@ -1,5 +1,12 @@
 # Feature specs
 
-One directory per feature: `docs/specs/issue-<number>/` with `intent.md` → `spec.md` → `plan.md`, one PR per artifact. Stages advance when a maintainer labels the feature issue `feature` → `spec` → `plan` → `implement`. Security reviewers report on every spec PR; their reports appear as PR comments and workflow artifacts.
+One directory per change: `docs/specs/<id>/`.
 
-Reviewer reports (requirements auditor, security architect) are posted as one PR comment each and kept as workflow artifacts; see `docs/pipeline.md`.
+| File | Stage | Written by |
+|---|---|---|
+| `intent.md` | 1 intent | author agent, from the owner's idea and answers |
+| `spec.md`, `security-traceability.md`, `threat-model.md` | 2 spec | author agent; traceability by the requirements auditor, threat model by the security architect |
+| `plan.md` | 3 plan | author agent |
+| `reviews/<reviewer>.json` | every stage | each reviewer: verdict, findings, file hashes |
+
+One PR per stage; the owner's merge is the gate. What each stage produces and how it is evaluated: `docs/pipeline.md` → "Agreed process".
