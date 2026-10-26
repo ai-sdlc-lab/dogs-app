@@ -7,8 +7,11 @@ Read-only dog gallery (FastAPI on Lambda + Vite/TypeScript, S3 images). Architec
 - Infra: `make plan` then `make apply` (local only with `AWS_PROFILE=sdlc-lab-admin`; CI deploys on `main`)
 
 ## How features are built
-Every feature starts as `docs/specs/<feature>/intent.md` from the appsec-baseline template, then `spec.md`, then `plan.md`, then code: one PR per artifact. Never skip a stage or combine stages.
-- Templates and **security requirements** (SR-001…SR-031) live in `ai-sdlc-lab/appsec-baseline` (branch `main`). Every applicable requirement must be addressed in the spec and mapped to a plan step and a test. Use the exact values the requirements give (limits, algorithms, headers, log fields).
+Stages: intent → spec → plan → code → release. One md file per stage, one PR per stage, the owner's merge is each stage's gate; never skip or combine stages. Full process (what each stage produces and how it is evaluated): `docs/pipeline.md` → "Agreed process".
+- Per change: `docs/specs/<id>/` with `intent.md`, `spec.md`, `security-traceability.md`, `threat-model.md`, `plan.md`; review reports in `docs/specs/<id>/reviews/`.
+- Templates and **security requirements** (SR-001…SR-031, all MUST) live in `ai-sdlc-lab/appsec-baseline` (branch `main`). Every applicable requirement is addressed in the spec and mapped to a plan task and a named test. Use the exact values the requirements give (limits, algorithms, headers, log fields).
+- Any finding against an SR is decided by the owner (fix or exception), never by an agent.
+- When code departs from `plan.md`, update `plan.md` in the same PR.
 - Specs state behaviour and numbers, not implementation.
 
 ## Rules

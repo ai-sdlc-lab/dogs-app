@@ -2,6 +2,43 @@
 
 A plain-language guide to the automation around dogs-app: what runs, when, with which credentials, and why it is built this way.
 
+## Agreed process (2026-10-26, being built)
+
+Replaces the CI-based review flow described further down ("Current pipeline").
+
+- One md file per stage, one PR per stage, **the owner's merge is each stage's gate**. The next stage starts from the updated `main` when the owner says "next stage".
+- All LLM work (authoring and reviews) runs as subagents in the owner's local Claude Code session. **CI makes no LLM calls**: it runs scripts and scanners only.
+- Any finding against a security requirement (all SRs are MUST) **escalates to the owner**: fix it, or accept it as an exception (reason, expiry) in appsec-baseline. Agents never decide.
+- Findings in a PR: one PR comment, only when there are findings. Findings on `main`: one GitHub issue per finding (label `security-finding`).
+- Old code is not assessed up front: stage 4 checks every touched file against all applicable SRs, so gaps surface when their code changes.
+
+| Stage | Produces | Evaluated | How |
+|---|---|---|---|
+| 1 intent | `intent.md` | template structure | script |
+| | | completeness: who is affected, functional and visual change, data, success criteria, out of scope | LLM: intent-completeness |
+| | | which SRs apply | LLM: requirements auditor |
+| | | no secrets | gitleaks |
+| 2 spec | `spec.md` | template structure; complete and testable, no open questions | script; LLM: spec-completeness |
+| | `security-traceability.md` | each applicable SR → how it is met → test | LLM: requirements auditor |
+| | `threat-model.md` | each threat → mitigation → test | LLM: security architect |
+| 3 plan | `plan.md` (files, order, tasks, named tests) | template structure | script |
+| | | fits `architecture.md` + ADRs | LLM: architecture-conformance |
+| | | every SR and mitigation has a task and a named test | script (ID cross-check) + LLM: security architect |
+| 4 code | code + tests (`plan.md` updated if the work departs from it) | lint, tests, build, kind deploy | CI `ci` |
+| | | named tests exist and pass; changed files are in the plan | scripts |
+| | | mitigations and SRs implemented; touched files vs all applicable SRs | LLM: security code reviewer |
+| | | workflows / IaC (when changed) | LLM: workflow/IaC reviewer + zizmor, actionlint, Trivy |
+| | | code and dependencies | Semgrep, OSV-Scanner, gitleaks |
+| | | a report per required reviewer, matching the files (hash) | script (CI verifier) |
+| 5 release | deployed build | running app | ZAP baseline in kind |
+| | | ZAP alerts mapped to SRs; any alert without an exception stops the deploy and opens an issue | script |
+| | | smoke test | script |
+| 6 finding | GitHub issue → new `intent.md` | back to stage 1 | |
+
+Docs-only PRs run gitleaks + the verifier only. Implementation starts only when every plan review passes.
+
+# Current pipeline (being replaced)
+
 ## Vocabulary
 
 | Term | Meaning here |
