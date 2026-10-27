@@ -1,0 +1,86 @@
+{
+  "reviewer": "intent-completeness",
+  "verdict": "allow",
+  "findings": [
+    {
+      "id": "IC-001",
+      "section": "What changes / Functional",
+      "severity": "medium",
+      "needs_human": false,
+      "evidence": "New reviewers listed are \"intent-completeness, spec-completeness, architecture-conformance, security code reviewer\", plus the existing requirements auditor and security architect. KIT-DESIGN.md stage 4 and WORKFLOW.md S4 also require an \"LLM: workflow/IaC reviewer + zizmor, actionlint, Trivy\" when .github/ or infra/ change. The intent removes the CI reviewer jobs in security.yml but never says where workflow/IaC review runs after that.",
+      "recommendation": "Add the workflow/IaC reviewer to the local reviewer set, either as a new agent or as the existing one run locally, and name zizmor/actionlint/Trivy among the path-scoped CI scanners. If it is deliberately deferred, list it under Out of scope."
+    },
+    {
+      "id": "IC-002",
+      "section": "Success criteria",
+      "severity": "medium",
+      "needs_human": false,
+      "evidence": "The Functional section takes on all checks \"as in WORKFLOW.md\" for intent, spec, plan and code, including the template-structure script, the plan SR/mitigation ID cross-check, the named-test-exists check, the plan-drift check and the path-scoped scanners. No success criterion covers any of these. The criteria cover only the report hash/verifier, SR escalation, comments, $0 spend and usage.",
+      "recommendation": "Add one testable criterion per script check, e.g. \"a PR that changes a file not listed in plan.md fails CI\", \"a plan missing a task for an SR in the traceability file fails the cross-check\", \"an intent.md with an empty required section fails the structure check\", \"a docs-only PR runs only gitleaks + verifier\"."
+    },
+    {
+      "id": "IC-003",
+      "section": "Success criteria",
+      "severity": "medium",
+      "needs_human": true,
+      "evidence": "Criterion 6: \"One full stage ... completes within the owner's Pro plan usage window\". It is not defined what counts as passing (no usage-limit message? a share of the 5-hour window? which stage, since code and spec costs differ?). KIT-DESIGN lists this as \"Open: Pro plan usage limits ... (verify against real usage)\".",
+      "recommendation": "Owner to state the pass threshold, e.g. \"the heaviest stage of 0001 (code) finishes without hitting a Pro usage limit message\", and what happens if it fails (accept, or reduce reviewers/rounds)."
+    },
+    {
+      "id": "IC-004",
+      "section": "Data handled",
+      "severity": "medium",
+      "needs_human": true,
+      "evidence": "Review reports are classed \"Personal/sensitive? no\" and kept in \"git history (public repo)\". Reports hold SR findings (e.g. open violations like SR-004 in touched code), and these become public before any fix. That includes open/needs-human findings committed at PR time.",
+      "recommendation": "Owner to confirm that publishing unfixed security findings in a public repo is acceptable. Otherwise state a rule for them (e.g. SR findings are summarised by ID only, or the details go to a private location) and update the sensitivity column."
+    },
+    {
+      "id": "IC-005",
+      "section": "What changes / Functional",
+      "severity": "medium",
+      "needs_human": true,
+      "evidence": "\"Any finding against a security requirement escalates to the owner\". KIT-DESIGN adds the owner's options: fix, or accept the risk as a reviewed exception (SR, reason, expiry) in appsec-baseline exceptions/, \"which the gate reads; the re-run then passes\". The intent does not say whether the exception file format and the gate reading exceptions/ are part of 0001. It also does not say how an owner decision is recorded in the PR (finding status accepted-risk).",
+      "recommendation": "State whether the exceptions/ mechanism and the finding statuses (fixed/open/needs-human/accepted-risk/carried) are in scope for 0001, or list them under Out of scope."
+    },
+    {
+      "id": "IC-006",
+      "section": "What changes / Out of scope",
+      "severity": "medium",
+      "needs_human": true,
+      "evidence": "The security-tester job in deploy.yml is removed, and the release-time ZAP → SR mapping and deploy stop are deferred to 0002. The intent does not say what the release path does between 0001 and 0002: does the existing ZAP baseline/smoke test keep running unchanged, and does anything still stop a deploy?",
+      "recommendation": "Add one line describing interim release behaviour (e.g. \"deploy.yml keeps ZAP baseline + smoke test as today; no gate on alerts until 0002\")."
+    },
+    {
+      "id": "IC-007",
+      "section": "What changes / Functional",
+      "severity": "low",
+      "needs_human": false,
+      "evidence": "KIT-DESIGN step 6 has the CI verifier check that hashes match \"and whose verdict allows\", plus a template structure check. The intent's CI bullet mentions only \"exists and matches the PR's files\".",
+      "recommendation": "Add \"and its verdict allows\" and the template-structure check to the CI bullet so the spec does not have to infer them."
+    },
+    {
+      "id": "IC-008",
+      "section": "What changes / Functional",
+      "severity": "low",
+      "needs_human": true,
+      "evidence": "\"`/stage <stage> <id>`, later \\\"next stage\\\"\". It is unclear whether the \"next stage\" trigger is part of 0001. The optional git-push hook backstop from KIT-DESIGN is also not mentioned either way.",
+      "recommendation": "Say whether \"next stage\" and the push-blocking hook are in scope; if not, add them to Out of scope."
+    },
+    {
+      "id": "IC-009",
+      "section": "What changes / Functional",
+      "severity": "low",
+      "needs_human": false,
+      "evidence": "The change removes workflows under .github/ and edits lab-admin settings (required checks, repo variables, labels, Actions allowlist). dogs-app CLAUDE.md forbids agents from editing .github/ (hook + CODEOWNERS), and lab-admin is a separate repo. The intent does not say who makes these edits in the code stage, or how plan drift / the verifier treat cross-repo changes.",
+      "recommendation": "State that the .github/ edits and the lab-admin PR are made by the owner (or an exempted path), and whether the lab-admin change is part of this change's code stage or a follow-up PR."
+    },
+    {
+      "id": "IC-010",
+      "section": "Success criteria",
+      "severity": "low",
+      "needs_human": false,
+      "evidence": "Criterion 1 measures $0 spend only for \"idea to a merged intent PR\", while the change covers intent through code. Criterion 2 covers dogs-app workflows but not removal of the lab-admin required checks/variables/labels/allowlist entries.",
+      "recommendation": "Extend criterion 1 to all four stages of a change (or of 0001 itself). Add a check that the lab-admin required-check list, variables, labels and allowlist no longer reference the removed LLM jobs."
+    }
+  ]
+}

@@ -1,0 +1,105 @@
+{
+  "reviewer": "security-requirements-auditor",
+  "artifact": "# Security traceability: 0001-local-stage-loop\n\n<!-- Written by the security-requirements-auditor in CI. Do not edit by hand. -->\n\nRequirements: appsec-baseline `requirements/security-requirements.md` @ `<sha not provided; working copy read>`\nArtifacts reviewed: intent.md @ `<sha not provided; working copy read>`\n\n## Triggers\n| Trigger | True? | Why |\n|---|---|---|\n| INPUT | true | The new CI verifier reads PR-supplied files (review reports, artifacts, file lists) that are untrusted (intent § What changes: \"CI verifies, without an LLM, that each required review report exists and matches the PR's files\"; § Trust assumptions: \"agent output until a script has validated it\"). |\n| ENDPOINT | false | \"No change to the dogs-app web UI or API\" (§ Visual). |\n| WRITE | false | No app-level create/change/delete for callers. PR comments and stage PRs are written by the owner's session, covered under AI/CI. |\n| FILE | false | No upload, storage or serving of user files. Review reports are repo files, not user uploads. |\n| AUTHN | true | Operator identity for agent actions changes. Authoring and reviewing move from CI service accounts and claude[bot] to the owner's laptop and \"Claude Code login\" (§ Trust assumptions), and the Anthropic federation rules and service accounts are deleted (§ Functional). |\n| AUTHZ | true | Required checks, rulesets and Actions allowlist entries in lab-admin change (§ Functional), which changes what may merge to `main` and under which conditions. |\n| CRYPTO | true | Review reports carry \"file hashes\" used to bind a report to the PR's files (§ Data handled; success criterion 3), so hashing is used for integrity. |\n| DATA | false | Data table lists no personal or sensitive data. |\n| LOG | false | No application or security logging change is described. |\n| SECRET | true | Removal of Anthropic federation (OIDC) credentials and repo variables, the reliance on the owner's Claude Code login and laptop credentials, and the rule that reports \"must never quote credentials\". |\n| DEP | true | New verifier scripts and per-path scanner runs in CI, a new local appsec-baseline plugin as a build input, and removal of `anthropics/claude-code-action` from the allowlist. |\n| IAC | true | lab-admin Terraform changes (required checks, variables, labels, Actions allowlist), plus removal of federation rules and service accounts. |\n| CI | true | `security.yml`, `deploy.yml` and `author.yml` change or are removed. New verifier job, path-scoped scanners and required checks change. |\n| AI | true | New author and reviewer subagents, a new gate and fix loop, and changed escalation behaviour (§ Functional). |\n\n## Requirements\n| SR | Level (MUST/SHOULD) | Status (covered / missing / N/A) | Where (artifact § or test) | Justification |\n|---|---|---|---|---|\n| SR-001 | MUST | missing | intent § Trust assumptions (partial) | Intent says agent output is untrusted until a script validates it. It does not yet say how the verifier validates PR-supplied reports (schema, fail-closed on malformed or missing). This is expected at spec stage. See AUD-008. |\n| SR-002 | MUST | missing | intent § Functional (security-tester removed) | The verifier and scanner path selection handle untrusted file names and contents, and the spec must cover them. Removing the deploy-time security-tester also removes the evidence source SR-002 names. See AUD-002. |\n| SR-003 | MUST | N/A | — | Triggered only via INPUT. The change produces no HTTP responses or frontend rendering (§ Visual: none). |\n| SR-004 | MUST | N/A | — | ENDPOINT is false. The known SR-004 violation is explicitly out of scope (§ Out of scope). |\n| SR-005 | MUST | N/A | — | ENDPOINT is false. |\n| SR-006 | MUST | N/A | — | ENDPOINT and FILE are false. |\n| SR-007 | MUST | N/A | — | WRITE, FILE and ENDPOINT are false. |\n| SR-008 | MUST | N/A | — | FILE is false. |\n| SR-009 | MUST | N/A | — | FILE is false. |\n| SR-010 | MUST | N/A | — | FILE is false. |\n| SR-011 | MUST | N/A | — | FILE is false. |\n| SR-012 | MUST | N/A | — | FILE is false. |\n| SR-013 | MUST | N/A | — | FILE is false. |\n| SR-014 | MUST | N/A | — | FILE is false. |\n| SR-015 | MUST | N/A | — | FILE and WRITE are false. |\n| SR-016 | MUST | N/A | — | AUTHN is true only for operators and agents. Application user sign-in is unchanged (§ Users: \"No change for app visitors\"). |\n| SR-017 | MUST | missing | intent § Trust assumptions | The \"Claude Code login\" becomes a trusted, privileged operator credential that drives agents with repo write access. Phishing-resistant MFA on it is not stated. See AUD-004. |\n| SR-018 | MUST | N/A | — | No bearer-token validation by the app changes. |\n| SR-019 | MUST | N/A | — | No browser token or cookie handling changes. |\n| SR-020 | MUST | N/A | — | No app endpoints or objects change. Repository merge authorisation is assessed under SR-030 and SR-031. |\n| SR-021 | MUST | missing | intent § Data handled (\"file hashes\") | The hash algorithm for binding reports to files is unstated. It must be SHA-256 or stronger, not SHA-1 (git blob IDs). See AUD-005. |\n| SR-022 | MUST | N/A | — | No TLS configuration, endpoint or AWS resource changes. The IAC change is limited to GitHub settings over the GitHub API. |\n| SR-023 | MUST | covered (intent level) | intent § Data handled | Reports \"may quote code, must never quote credentials\" and hold no personal data, which matches the clause \"CI artifacts contain no personal or sensitive data\". No data stores change. |\n| SR-024 | MUST | N/A | — | Triggered via AUTHN, AUTHZ and INPUT. No application security logging changes, and no app endpoints change. |\n| SR-025 | MUST | N/A | — | DATA is false. |\n| SR-026 | MUST (+SHOULD) | missing | intent § Functional (federation removal), § Data handled | Removing static-free federation for unused CI LLM calls is consistent with the requirement. Credential removal is manual and conditional (GitHub App \"decides whether\"), and the gitleaks coverage of reports is only implied. See AUD-006. |\n| SR-027 | MUST | missing | intent § Trust assumptions | \"appsec-baseline at the commit the session uses\" is not a pinned, CI-verified build input. New verifier tooling and scanners need pinning. See AUD-003. |\n| SR-028 | MUST | N/A | — | No AWS IAM change. The Anthropic service accounts being deleted are not AWS IAM, and AUD-006 tracks them. |\n| SR-029 | MUST | N/A | — | No AWS resources change. |\n| SR-030 | MUST | missing | intent § Functional (CI verifier, path-scoped scanners) | The new or changed workflows must keep the hardening. Path-scoped scanner selection must not let `.github/`, `infra/` or code changes skip required scanners. See AUD-007. |\n| SR-031 | MUST | missing | intent § Users and actors, § Trust assumptions, § Functional | The intent covers untrusted input to agents (§ Trust assumptions) and escalation of SR findings to the owner (§ Functional). It does not cover tool allow lists, read-only reviewers, or limits on what local agents can do with the owner's GitHub and AWS credentials. Self-approval is no longer distinguishable from agent action. See AUD-001. |\n\n## Summary\nCovered: 1 · Missing: 9 · N/A: 21\n",
+  "findings": [
+    {
+      "id": "AUD-001",
+      "reviewer": "security-requirements-auditor",
+      "severity": "medium",
+      "sr_ref": "SR-031",
+      "file": "docs/specs/0001-local-stage-loop/intent.md",
+      "line": 14,
+      "evidence": "Intent: \"Local Claude Code session and its subagents (author, reviewers): write and review artifacts on the owner's laptop\" and \"Trusted: the owner; the owner's laptop and Claude Code login\". Nothing states each subagent's tool allow list, that reviewers are read-only, or that agents cannot push, open, approve or merge PRs, or run infra commands, with the owner's credentials. The session runs under the owner's GitHub identity, and dogs-app CLAUDE.md documents `make apply` with `AWS_PROFILE=sdlc-lab-admin` locally. GitHub can no longer tell agent actions from owner actions, so the SR-031 evidence \"ruleset forbids self-approval\" no longer separates agent from approver: the owner is a review-bypass actor in lab-admin github.tf.",
+      "recommendation": "Add a trust assumption and an intent for bounded agency in the local session. Each subagent gets an explicit tool allow list. Reviewers are read-only. Only the orchestrating session may write, and only to `docs/specs/<id>/`. No agent merges, approves, pushes to `main` or runs `make apply`. Name what enforces this (agent frontmatter `tools`, Claude Code permission settings or hooks) so the spec can cover SR-031 with concrete values.",
+      "blocking": false
+    },
+    {
+      "id": "AUD-002",
+      "reviewer": "security-requirements-auditor",
+      "severity": "medium",
+      "sr_ref": "SR-002",
+      "file": "docs/specs/0001-local-stage-loop/intent.md",
+      "line": 30,
+      "evidence": "Intent: \"the `security-tester` job in `deploy.yml` ... removed\", and release-time ZAP-to-SR mapping is deferred to change 0002 (§ Out of scope). SR-002, SR-020 and SR-024 name \"security-tester (... checks) clean\" as evidence, and the intent does not say what produces that evidence for future code changes. Between 0001 and 0002, deploy keeps only the passive ZAP baseline, with no security stop.",
+      "recommendation": "State in the intent which local reviewer (the \"security code reviewer\") replaces the security-tester's injection, authn/authz and secrets/logging checks, and that it runs on the code stage before merge. Also state whether the deploy-time gap until 0002 is accepted, and by whom. If it is accepted, record a time-boxed lab exception so the SR evidence paths stay satisfiable.",
+      "blocking": false
+    },
+    {
+      "id": "AUD-003",
+      "reviewer": "security-requirements-auditor",
+      "severity": "medium",
+      "sr_ref": "SR-027",
+      "file": "docs/specs/0001-local-stage-loop/intent.md",
+      "line": 43,
+      "evidence": "Intent: \"Trusted: ... appsec-baseline at the commit the session uses\". The commit is whatever the local plugin has checked out. It is recorded in the review report but not pinned, and the intent does not say that CI checks it. The requirements header says app repos read the requirements \"at a pinned commit\".",
+      "recommendation": "State that the appsec-baseline commit is pinned in dogs-app, and that the CI verifier fails when a review report's recorded appsec-baseline commit differs from the pin. New CI tools for the verifier and scanners must be pinned by version and SHA-256, per SR-027.",
+      "blocking": false
+    },
+    {
+      "id": "AUD-004",
+      "reviewer": "security-requirements-auditor",
+      "severity": "medium",
+      "sr_ref": "SR-017",
+      "file": "docs/specs/0001-local-stage-loop/intent.md",
+      "line": 43,
+      "evidence": "Intent trusts \"the owner's laptop and Claude Code login\", which now drives agents that write to the repo with the owner's credentials. SR-017 requires FIDO2/WebAuthn for privileged accounts and lists only the Anthropic Console. The Claude subscription login used by Claude Code is not mentioned, and the intent states no MFA for it.",
+      "recommendation": "Add to the trust assumptions that the Claude account used by Claude Code and the owner's GitHub account use FIDO2/WebAuthn MFA. Have the spec record the Claude subscription account as an operator account in BASELINE.",
+      "blocking": false
+    },
+    {
+      "id": "AUD-005",
+      "reviewer": "security-requirements-auditor",
+      "severity": "low",
+      "sr_ref": "SR-021",
+      "file": "docs/specs/0001-local-stage-loop/intent.md",
+      "line": 40,
+      "evidence": "Data table: \"Review reports (verdict, findings, file hashes, appsec-baseline commit)\". The hash algorithm is unstated. If an implementation reuses git blob or object IDs it relies on SHA-1, which SR-021 forbids for integrity.",
+      "recommendation": "State in the spec that report-to-file binding uses SHA-256 or stronger over the file contents, computed by the verifier, and add the use to the crypto inventory.",
+      "blocking": false
+    },
+    {
+      "id": "AUD-006",
+      "reviewer": "security-requirements-auditor",
+      "severity": "medium",
+      "sr_ref": "NEW",
+      "file": "docs/specs/0001-local-stage-loop/intent.md",
+      "line": 31,
+      "evidence": "Intent: \"After the code PR is merged, the owner deletes the two Anthropic federation rules and service accounts, and decides whether to uninstall the Claude GitHub App (ATK-01 demo).\" Credential and integration removal is manual, outside IaC, has no deadline or verification, and may leave an unused app with repo write access installed.",
+      "recommendation": "Make the clean-up a success criterion with a verification step: federation rules and service accounts are gone, and the `ANTHROPIC_*` repo variables are removed by Terraform. If the Claude GitHub App stays installed for the ATK-01 demo, record it as an accepted exception in BASELINE, with its permissions, owner and review date.",
+      "blocking": false
+    },
+    {
+      "id": "AUD-007",
+      "reviewer": "security-requirements-auditor",
+      "severity": "medium",
+      "sr_ref": "SR-030",
+      "file": "docs/specs/0001-local-stage-loop/intent.md",
+      "line": 28,
+      "evidence": "Intent: \"runs scanners only on the paths they cover (docs-only PRs: gitleaks + verifier)\" and the required checks are being replaced in lab-admin. The intent does not say how a PR is classified as docs-only, or that a misclassified or mixed PR cannot skip zizmor, actionlint, Checkov or Semgrep while required checks still report success.",
+      "recommendation": "In the spec, define the path classification as fail-closed: any path outside `docs/` runs the full scanner set. Required checks must report from always-running jobs, not be skipped. The new verifier workflow must meet SR-030: `pull_request` trigger, `permissions: {}`, `persist-credentials: false`, timeout ≤ 30 min, untrusted context passed only via `env`.",
+      "blocking": false
+    },
+    {
+      "id": "AUD-008",
+      "reviewer": "security-requirements-auditor",
+      "severity": "low",
+      "sr_ref": "SR-001",
+      "file": "docs/specs/0001-local-stage-loop/intent.md",
+      "line": 44,
+      "evidence": "Intent: \"Not trusted: ... agent output until a script has validated it\". It does not yet state that the CI verifier treats PR-supplied review reports as untrusted input, validates them against the findings schema, rejects unknown fields and limits sizes, or fails the check when a report is malformed or missing.",
+      "recommendation": "In the spec, define the verifier's input schema (report fields, size limit, allowed reviewer names) and fail-closed behaviour. Add named tests for a malformed report, a missing report and a report from the wrong reviewer.",
+      "blocking": false
+    },
+    {
+      "id": "AUD-009",
+      "reviewer": "security-requirements-auditor",
+      "severity": "info",
+      "sr_ref": "SR-031",
+      "file": "docs/specs/0001-local-stage-loop/intent.md",
+      "line": null,
+      "evidence": "Several applicable requirements are not yet addressed in detail, which is normal at the intent stage: SR-001, SR-002, SR-017, SR-021, SR-026, SR-027, SR-030 and SR-031. The intent contradicts none of them. No prompt-injection content was found in the artifact.",
+      "recommendation": "spec.md must cover each listed requirement with concrete values (pins, hash algorithm, workflow permissions, agent tool allow lists, maxTurns, model IDs, schema validation) and named tests, per the traceability table.",
+      "blocking": false
+    }
+  ]
+}
