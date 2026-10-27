@@ -1,0 +1,14 @@
+# INT-0001 review status
+
+Reviewed by hand-run subagents (the stage loop doesn't exist yet). Round 1: Opus 5.5. Round 2: intent-completeness on Haiku 4.5, requirements auditor on Sonnet 5.5.
+
+| Finding | Status | Note |
+|---|---|---|
+| Round 1 IC-001..010, AUD-001..009 | fixed / owner-decided | owner decisions 2026-10-27: deploy gap until 0002 accepted; open findings may be public; Claude GitHub App uninstalled at clean-up; reviewers on smaller models; standing merge/apply permissions removed; account MFA out of scope |
+| IC-201 push hook | no change | already listed under Out of scope |
+| IC-202 multi-repo code stage | fixed | one PLAN section and one code PR per repo; plan drift per repo |
+| IC-203 author model | fixed | author on Opus 5.5 for all stages |
+| AUD-001 (round 2) exception expiry | carried → spec | record the deploy-gap exception in appsec-baseline `exceptions/` with SR-002/020/024, reason, calendar expiry |
+| AUD-002 (round 2) model IDs, maxTurns | carried → spec | full model IDs, maxTurns, tool allow lists and enforcement per agent, with named tests |
+
+Verdict: allow (no open findings; two carried to the spec stage).

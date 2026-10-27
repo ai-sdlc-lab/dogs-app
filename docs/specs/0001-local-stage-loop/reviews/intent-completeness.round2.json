@@ -1,0 +1,41 @@
+{
+  "reviewer": "intent-completeness",
+  "round": 2,
+  "verdict": "allow",
+  "round1_resolved": [
+    "IC-001",
+    "IC-002",
+    "IC-003",
+    "IC-004",
+    "IC-005",
+    "IC-006",
+    "IC-007",
+    "IC-010"
+  ],
+  "findings": [
+    {
+      "id": "IC-201",
+      "section": "What changes / Functional",
+      "severity": "low",
+      "needs_human": false,
+      "evidence": "Round 1 finding IC-008 was partially resolved: the intent now explicitly includes \"next stage\" in the `/stage` command description. However, the push-blocking git hook—offered in KIT-DESIGN as an optional backstop (\"optionally a hook blocking `git push` while the gate hasn't passed\")—is not mentioned in INT-0001 either as in-scope or deferred.",
+      "recommendation": "Clarify whether the push hook is in scope for 0001 or listed under Out of scope. If not implemented here, add one line: e.g., \"Push-blocking hook deferred; CI verifier is the backstop.\""
+    },
+    {
+      "id": "IC-202",
+      "section": "What changes / Functional",
+      "severity": "medium",
+      "needs_human": true,
+      "evidence": "The Functional section states the change spans two repos and produces \"two PRs: dogs-app code PR and lab-admin code PR, both part of the code stage, listed per repo in plan.md.\" Success criterion 6 specifies \"a code PR changing a file not listed in plan.md fails plan drift.\" It is unclear whether (a) `/stage code <NNNN>` opens one PR per repo (two separate verifier runs) or one unified PR; (b) plan.md has per-repo sections or a single plan covers both; (c) plan drift is evaluated per-repo or across both together.",
+      "recommendation": "Owner to clarify the multi-repo code-stage flow: Is `/stage code <NNNN>` invoked once or twice? Does plan.md have per-repo sections or is lab-admin plan separate? Is plan drift checked independently per repo, or must the owner coordinate changes across both?"
+    },
+    {
+      "id": "IC-203",
+      "section": "What changes / Functional",
+      "severity": "low",
+      "needs_human": false,
+      "evidence": "The model section states: \"reviewers run on smaller models (Sonnet 5.5 or Haiku 4.5, set per agent); Opus 5.5 only for the main session and for authoring **plans and code**.\" This covers stages 3 and 4. Stages 1 (intent) and 2 (spec) authoring are not mentioned; it is ambiguous whether the author uses Opus 5.5 for all stages.",
+      "recommendation": "Clarify the author's model for all stages: e.g., \"Author uses Opus 5.5 for intent and spec authoring as well\" (by analogy with plans and code), or specify which model is used for stages 1–2."
+    }
+  ]
+}
