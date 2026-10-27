@@ -6,7 +6,8 @@ A plain-language guide to the automation around dogs-app: what runs, when, with 
 
 Replaces the CI-based review flow described further down ("Current pipeline").
 
-- One md file per stage, one PR per stage, **the owner's merge is each stage's gate**. The next stage starts from the updated `main` when the owner says "next stage".
+- One feature branch per change (`feature/<NNNN>-<slug>`). Each stage (one md file, or the code) is a PR from `stage/<NNNN>-<stage>` **into the feature branch**; **the owner's merge of that PR is the stage gate**. The next stage starts from the updated feature branch when the owner says "next stage".
+- When the code is implemented and validated: one PR from the feature branch to `main` (required checks + owner approval), then release. `main` only receives finished changes, and deploys once per change.
 - All LLM work (authoring and reviews) runs as subagents in the owner's local Claude Code session. **CI makes no LLM calls**: it runs scripts and scanners only.
 - Any finding against a security requirement (all SRs are MUST) **escalates to the owner**: fix it, or accept it as an exception (reason, expiry) in appsec-baseline. Agents never decide.
 - Findings in a PR: one PR comment, only when there are findings. Findings on `main`: one GitHub issue per finding (label `security-finding`).

@@ -4,9 +4,9 @@ One directory per change: `docs/specs/<id>/`.
 
 | File | Stage | Written by |
 |---|---|---|
-| `intent.md` | 1 intent | author agent, from the owner's idea and answers |
-| `spec.md`, `security-traceability.md`, `threat-model.md` | 2 spec | author agent; traceability by the requirements auditor, threat model by the security architect |
-| `plan.md` | 3 plan | author agent |
+| `INT-<NNNN>.md` | 1 intent | author agent, from the owner's idea and answers |
+| `SPEC-<NNNN>.md`, `TRACE-<NNNN>.md`, `THREAT-<NNNN>.md` | 2 spec | author agent; traceability by the requirements auditor, threat model by the security architect |
+| `PLAN-<NNNN>.md` | 3 plan | author agent |
 | `reviews/<reviewer>.json` | every stage | each reviewer: verdict, findings, file hashes |
 
-One PR per stage; the owner's merge is the gate. What each stage produces and how it is evaluated: `docs/pipeline.md` → "Agreed process".
+Files carry the change ID (`INT-0001.md`, `SPEC-0001.md`, `TRACE-0001.md`, `THREAT-0001.md`, `PLAN-0001.md`). One feature branch per change; each stage is a PR into it, merged by the owner (the stage gate); one final PR to `main` when the change is implemented and validated. What each stage produces and how it is evaluated: `docs/pipeline.md` → "Agreed process".
