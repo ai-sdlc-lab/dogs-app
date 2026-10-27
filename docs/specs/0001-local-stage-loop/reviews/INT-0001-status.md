@@ -1,6 +1,6 @@
 # INT-0001 review status
 
-Reviewed by hand-run subagents (the stage loop doesn't exist yet). Round 1: Opus 5.5. Round 2: intent-completeness on Haiku 4.5, requirements auditor on Sonnet 5.5.
+Reviewed by hand-run subagents (the stage loop doesn't exist yet), plus the old CI reviewers on the PR (API credits). Round 1: Opus 5.5. Round 2: intent-completeness on Haiku 4.5, requirements auditor on Sonnet 5.5.
 
 | Finding | Status | Note |
 |---|---|---|
@@ -10,5 +10,10 @@ Reviewed by hand-run subagents (the stage loop doesn't exist yet). Round 1: Opus
 | IC-203 author model | fixed | author on Opus 5.5 for all stages |
 | AUD-001 (round 2) exception expiry | carried → spec | record the deploy-gap exception in appsec-baseline `exceptions/` with SR-002/020/024, reason, calendar expiry |
 | AUD-002 (round 2) model IDs, maxTurns | carried → spec | full model IDs, maxTurns, tool allow lists and enforcement per agent, with named tests |
+| ARC-001 read-only not enforced (CI architect, high) | fixed | subagents: no shell/network tools, allow lists in agent definitions |
+| ARC-002 session acts as owner with bypass (high) | fixed | merge, --admin, push to main, make apply denied in committed project settings |
+| ARC-003 verifier runs from the PR it checks (high) | fixed | verifier + scripts run from appsec-baseline at a pinned commit |
+| ARC-004 protected paths vs. stage loop (high) | fixed | .github/, .claude/, TRACE-/THREAT- writable by the main session only |
+| ARC-005..010 (medium/low), ARC-011 (info) | carried → spec | pin changes, report parsing, empty-report manipulation, path classification edge cases, required-check ordering, redaction before commit |
 
 Verdict: allow (no open findings; two carried to the spec stage).
