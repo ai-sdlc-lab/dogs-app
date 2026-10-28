@@ -22,4 +22,6 @@ Branching changed 2026-10-27 (owner): one feature branch per change, stage PRs i
 
 Owner decisions 2026-10-28: agents work autonomously on the feature branch (commit, push, merge stage PRs); the only human gate is the owner's approval of the merge to `main`. ARC-002 narrows to: the session must not be able to merge into `main` (enforcement decided in the spec). Issue #9 (review comment verbosity) is fixed within this change.
 
+Round 3 (2026-10-28): intent-completeness (Haiku 4.5) allow, no findings. Requirements auditor (Sonnet 5.5) AUD-001 high, SR-031 "No agent approves or merges its own work" contradicts agents merging stage PRs → owner decision: amend SR-031 to cover merges into `main` / deploying branches (in this change); GitHub enforcement tracked in issue #12.
+
 Verdict: allow (no open findings; two carried to the spec stage).
