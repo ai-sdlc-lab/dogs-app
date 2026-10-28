@@ -1,0 +1,19 @@
+{
+  "reviewer": "workflow-iac-reviewer",
+  "stage": "code",
+  "change": "0001",
+  "model": "claude-sonnet-5-5",
+  "round": 3,
+  "appsec_sha": "7b4926138f6e2165d8abe7973352f1ca540a34f2",
+  "files": {
+    ".github/CODEOWNERS": "c2315506b8de5ac0fbbff001f0e85d0dab0c26f8c0889d0445262716b9370f1a",
+    ".github/ISSUE_TEMPLATE/config.yml": "46498c0b193abe5ddbb9a1bda57736d747d75c6c2d3137f0564931460c915e6a",
+    ".github/workflows/ci.yml": "a7fe89f18353f6838cd87de95ddf3dfb341472c6e33128fa26602a8fb5896a8f",
+    ".github/workflows/deploy.yml": "739767a8b8edeb8e49a764ce13079b5945e0ddc507a23c73fe1da372b6d54303",
+    ".github/workflows/security.yml": "aaa955cbf66e6d5062e1017d8287234985c5bb55bb726aeff55928d7c2937f40",
+    ".github/zizmor.yml": "dd0a1dae4d79f428aa3f27557c651fb7ca8d3e3b51ea19b27ee455e4dd25d20f"
+  },
+  "produced": {},
+  "verdict": "allow",
+  "findings": []
+}
