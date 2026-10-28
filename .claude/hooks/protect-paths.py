@@ -9,7 +9,9 @@ Fails closed: any error or malformed input blocks (exit 2). Decisions:
 - Main session: TRACE-/THREAT- files only via stage/write_artifact.py; `.github/` only on a code-stage branch;
   `.claude/`, CLAUDE.md, REVIEW.md, stages.yml, appsec-baseline.lock, `.appsec-baseline/` ask the owner;
   Bash: apply/destroy/seed denied, merges and pushes that may reach main ask, writes to protected paths ask.
-- Bypass permission mode: everything is denied.
+- Paths are compared case-insensitively (macOS file systems are).
+- Outside default/plan permission mode, every "ask" becomes a deny: in auto mode an ask would be answered by
+  the classifier, not the owner; bypass mode is denied outright.
 Every deny and ask is written to .claude/stage-log.jsonl.
 
 Command-text rules are best effort, not a security boundary (owner-accepted residual, SPEC-0001 §5).
@@ -21,11 +23,23 @@ import os
 import re
 import subprocess
 import sys
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
-ASK_PATHS = [".claude/*", "CLAUDE.md", "REVIEW.md", "stages.yml", "appsec-baseline.lock", ".appsec-baseline/*"]
-ARTIFACT = re.compile(r"^docs/specs/(?P<n>[0-9]{4})-[a-z0-9-]+/(?P<kind>INT|SPEC|PLAN|TRACE|THREAT)-(?P=n)\.md$")
+ASK_PATHS = [
+    ".claude/*",
+    "claude.md",
+    "review.md",
+    "stages.yml",
+    "appsec-baseline.lock",
+    ".appsec-baseline/*",
+    ".git/*",
+    ".mcp.json",
+    ".envrc",
+    ".vscode/*",
+]  # compared against the case-folded path
+OWNER_MODES = {"default", "plan"}
+ARTIFACT = re.compile(r"^docs/specs/(?P<n>[0-9]{4})-[a-z0-9-]+/(?P<kind>INT|SPEC|PLAN|TRACE|THREAT)-(?P=n)\.md$", re.IGNORECASE)
 STAGE_BRANCH = re.compile(r"^stage/(?P<n>[0-9]{4})-(?P<stage>intent|spec|plan|code)$")
 STAGE_KIND = {"intent": "INT", "spec": "SPEC", "plan": "PLAN"}
 APPLY = re.compile(r"\b(terraform|tofu)\b[^|;&]*\bapply\b|\bmake\b[^|;&]*\b(apply|destroy|seed)\b")
@@ -36,9 +50,18 @@ WRITE_OPS = re.compile(
     r"(>>?|\btee\b|\bsed\s+-i|\bcp\b|\bmv\b|\brm\b|\btouch\b|\bln\b|\binstall\b|\bchmod\b|\bperl\b"
     r"|python3?\s+-c|\bgit\s+(checkout|restore)\b)"
 )
-PROTECTED_IN_CMD = re.compile(r"(\.claude/|CLAUDE\.md|REVIEW\.md|stages\.yml|appsec-baseline\.lock|\.appsec-baseline/)")
-TRACE_THREAT_IN_CMD = re.compile(r"(TRACE|THREAT)-[0-9]{4}\.md")
-CONTROL = re.compile("[\\x00-\\x1f\\x7f]")
+PROTECTED_IN_CMD = re.compile(
+    r"(\.claude/|claude\.md|review\.md|stages\.yml|appsec-baseline\.lock|\.appsec-baseline/|\.git/|\.mcp\.json|\.envrc|\.vscode/)",
+    re.IGNORECASE,
+)
+TRACE_THREAT_IN_CMD = re.compile(r"(TRACE|THREAT)-[0-9]{4}\.md", re.IGNORECASE)
+CONTROL = re.compile("[\\x00-\\x1f\\x7f\\u2028\\u2029]")
+SECRETISH = re.compile(r"(?i)\b([A-Z0-9_]*(TOKEN|KEY|SECRET|PASSWORD)[A-Z0-9_]*)=\S+")
+
+
+def safe_text(s: str, limit: int = 120) -> str:
+    """Text for logs and prompts: no control characters, no KEY=value secrets."""
+    return SECRETISH.sub(r"\1=[REDACTED]", CONTROL.sub(" ", s))[:limit]
 
 
 def root_dir(event) -> Path:
@@ -49,7 +72,7 @@ def log(root: Path, event: dict, name: str, reason: str, detail: str) -> None:
     try:
         lock = root / "appsec-baseline.lock"
         rec = {
-            "ts": datetime.now(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z"),
+            "ts": datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z"),
             "level": "WARN",
             "service": "hook",
             "version": lock.read_text().strip()[:40] if lock.exists() else "unknown",
@@ -60,7 +83,7 @@ def log(root: Path, event: dict, name: str, reason: str, detail: str) -> None:
             "change": "",
             "stage": "",
             "request_id": CONTROL.sub(" ", str(event.get("session_id", "")))[:80],
-            "detail": CONTROL.sub(" ", detail)[:200],
+            "detail": safe_text(detail, 200),
         }
         (root / ".claude").mkdir(exist_ok=True)
         with open(root / ".claude" / "stage-log.jsonl", "a") as fh:
@@ -70,12 +93,16 @@ def log(root: Path, event: dict, name: str, reason: str, detail: str) -> None:
 
 
 def deny(root, event, reason, detail):
+    detail = safe_text(detail)
     log(root, event, "authz.denied", reason, detail)
     print(f"Blocked ({reason}): {detail}", file=sys.stderr)
     sys.exit(2)
 
 
 def ask(root, event, reason, detail):
+    detail = safe_text(detail)
+    if event.get("permission_mode") not in OWNER_MODES:
+        deny(root, event, f"{reason}_needs_owner", f"{detail} (switch to default mode, or the owner does it)")
     log(root, event, "authz.ask", reason, detail)
     out = {
         "hookSpecificOutput": {
@@ -103,7 +130,19 @@ def plan_files(root: Path, change: str) -> list[str]:
     plans = sorted((root / "docs" / "specs").glob(f"{change}-*/PLAN-{change}.md"))
     if not plans:
         return []
-    return [f for s in steps(plans[0].read_text(), "dogs-app") for f in s["files"]]
+    rel = plans[0].relative_to(root).as_posix()
+    feature = next(iter(sorted(b for b in git_lines(root, "branch", "--list", f"feature/{change}-*"))), "")
+    if not feature:
+        return []
+    text = subprocess.run(
+        ["git", "-C", str(root), "show", f"{feature}:{rel}"], capture_output=True, text=True, check=False, timeout=10
+    ).stdout  # the reviewed plan on the feature branch, never the working tree the author can edit
+    return [f for s in steps(text, "dogs-app") for f in s["files"] if "*" not in f.split("/")[0]]
+
+
+def git_lines(root: Path, *args: str) -> list[str]:
+    r = subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True, check=False, timeout=10)
+    return [ln.strip(" *") for ln in r.stdout.splitlines() if ln.strip(" *")]
 
 
 def glob_match(path: str, entry: str) -> bool:
@@ -117,6 +156,7 @@ def check_file(root: Path, event: dict, rel: str, subagent: bool) -> None:
     if rel.startswith("..") or os.path.isabs(rel):
         deny(root, event, "outside_repo", rel)
     m = ARTIFACT.match(rel)
+    rel_cf = rel.casefold()
     if subagent:
         if event.get("agent_type") != "author":
             deny(root, event, "subagent_read_only", f"{event.get('agent_type')} may not write {rel}")
@@ -125,25 +165,25 @@ def check_file(root: Path, event: dict, rel: str, subagent: bool) -> None:
             deny(root, event, "no_stage_branch", f"the author writes only on a stage/<NNNN>-<stage> branch ({rel})")
         n, stage = b["n"], b["stage"]
         if stage in STAGE_KIND:
-            if not (m and m["n"] == n and m["kind"] == STAGE_KIND[stage]):
+            if not (m and m["n"] == n and m["kind"] == STAGE_KIND[stage] and "/reviews/" not in rel_cf):
                 deny(root, event, "author_scope", f"at the {stage} stage the author writes only {STAGE_KIND[stage]}-{n}.md")
             return
-        protected = any(fnmatch.fnmatch(rel, p) for p in ASK_PATHS) or rel.startswith(".github/")
-        if "/reviews/" in rel or (m and m["kind"] in ("TRACE", "THREAT")) or protected:
+        protected = any(fnmatch.fnmatch(rel_cf, p) for p in ASK_PATHS) or rel_cf.startswith(".github/")
+        if "/reviews/" in rel_cf or (m and m["kind"].upper() in ("TRACE", "THREAT")) or protected:
             deny(root, event, "author_scope", rel)
         if m and m["kind"] == "PLAN" and m["n"] == n:
             return  # the plan is updated in the same PR when the work departs from it
         if not any(glob_match(rel, f) for f in plan_files(root, n)):
             deny(root, event, "author_scope", f"{rel} is not listed in the dogs-app section of PLAN-{n}.md")
         return
-    if m and m["kind"] in ("TRACE", "THREAT"):
+    if m and m["kind"].upper() in ("TRACE", "THREAT"):
         deny(root, event, "trace_threat", f"{rel} is written only by stage/write_artifact.py")
-    if rel.startswith(".github/"):
+    if rel_cf.startswith(".github/"):
         b = STAGE_BRANCH.match(branch(root))
         if not (b and b["stage"] == "code"):
             deny(root, event, "github_outside_code_stage", rel)
         return
-    if any(fnmatch.fnmatch(rel, p) for p in ASK_PATHS):
+    if any(fnmatch.fnmatch(rel_cf, p) for p in ASK_PATHS):
         ask(root, event, "protected_path", rel)
 
 
