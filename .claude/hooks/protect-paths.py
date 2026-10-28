@@ -13,8 +13,8 @@ PROTECTED = [
     "CLAUDE.md",
     "REVIEW.md",
     ".github/*",
-    "docs/specs/*/threat-model.md",
-    "docs/specs/*/security-traceability.md",
+    "docs/specs/*/THREAT-*.md",
+    "docs/specs/*/TRACE-*.md",
 ]
 
 event = json.load(sys.stdin)
