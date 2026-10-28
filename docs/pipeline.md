@@ -20,8 +20,8 @@ Replaces the CI-based review flow described further down ("Current pipeline").
 | | | which SRs apply | LLM: requirements auditor |
 | | | no secrets | gitleaks |
 | 2 spec | `spec.md` | template structure; complete and testable, no open questions | script; LLM: spec-completeness |
-| | `security-traceability.md` | each applicable SR → how it is met → test | LLM: requirements auditor |
-| | `threat-model.md` | each threat → mitigation → test | LLM: security architect |
+| | `TRACE-<NNNN>.md` | each applicable SR → how it is met → test | LLM: requirements auditor |
+| | `THREAT-<NNNN>.md` | each threat → mitigation → test | LLM: security architect |
 | 3 plan | `plan.md` (files, order, tasks, named tests) | template structure | script |
 | | | fits `architecture.md` + ADRs | LLM: architecture-conformance |
 | | | every SR and mitigation has a task and a named test | script (ID cross-check) + LLM: security architect |

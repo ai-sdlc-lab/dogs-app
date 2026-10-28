@@ -5,5 +5,5 @@
 /REVIEW.md                              @nkalexiou
 /.github/                               @nkalexiou
 /infra/                                 @nkalexiou
-/docs/specs/**/threat-model.md          @nkalexiou
-/docs/specs/**/security-traceability.md @nkalexiou
+/docs/specs/**/THREAT-*.md              @nkalexiou
+/docs/specs/**/TRACE-*.md               @nkalexiou

@@ -18,13 +18,13 @@ def run(path):
 @pytest.mark.parametrize(
     "path",
     ["CLAUDE.md", "REVIEW.md", ".claude/settings.json", ".github/workflows/deploy.yml",
-     "docs/specs/f/threat-model.md", "docs/specs/f/security-traceability.md",
+     "docs/specs/0001-x/THREAT-0001.md", "docs/specs/0001-x/TRACE-0001.md",
      "docs/../.github/x.yml", "../lab-admin/aws.tf", str(ROOT / "CLAUDE.md")],
 )
 def test_blocks_protected_paths(path):
     assert run(path) == 2
 
 
-@pytest.mark.parametrize("path", ["docs/specs/f/spec.md", "api/app/main.py", "web/src/main.ts"])
+@pytest.mark.parametrize("path", ["docs/specs/0001-x/SPEC-0001.md", "docs/specs/0001-x/INT-0001.md", "api/app/main.py", "web/src/main.ts"])
 def test_allows_normal_paths(path):
     assert run(path) == 0
