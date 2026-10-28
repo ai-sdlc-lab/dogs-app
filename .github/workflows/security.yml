@@ -106,7 +106,12 @@ jobs:
         run: |
           set -euo pipefail
           python3 -I -m pip install --quiet --require-hashes -r .appsec-baseline/gate/requirements.txt
-          kind=$(python3 -I -B .appsec-baseline/stage/classify.py . "$BASE_SHA" HEAD | jq -r .kind)
+          python3 -I -B .appsec-baseline/stage/classify.py . "$BASE_SHA" HEAD > "$RUNNER_TEMP/diff.json"
+          kind=$(jq -r .kind "$RUNNER_TEMP/diff.json")
+          # Scanner configs the tools would load from the PR can silence them: never accepted in a PR.
+          if jq -r '.paths[]' "$RUNNER_TEMP/diff.json" | grep -E '(^|/)(\.gitleaks\.toml|\.gitleaksignore|\.semgrepignore|osv-scanner\.toml|trivy\.ya?ml|\.trivyignore(\.yaml)?)$'; then
+            echo "::error::scanner configuration files can't be added or changed in a PR (they're read from appsec-baseline)"; exit 1
+          fi
           [[ "$kind" == docs || "$kind" == code ]] || kind=code
           echo "kind=$kind" >> "$GITHUB_OUTPUT"
           echo "Diff kind: $kind"
@@ -176,7 +181,7 @@ jobs:
             echo "::error::osv-scanner error ($OSV_RC)"; fail=1
           fi
           # Semgrep, Trivy, zizmor: error-level SARIF results block; missing or invalid SARIF escalates.
-          if [[ "$KIND" == code ]]; then
+          if [[ "$KIND" != docs ]]; then # fail-closed: anything but docs runs the SARIF gate
             python3 -I .appsec-baseline/gate/security_gate.py --sarif out/semgrep.sarif --sarif out/trivy.sarif \
               --sarif out/zizmor.sarif --summary "$GITHUB_STEP_SUMMARY" || fail=1
           fi

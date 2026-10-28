@@ -93,9 +93,10 @@ def test_verify_job_permissions_minimal():
     assert wf("security.yml")["permissions"] == {}
     assert jobs["tests"]["permissions"] == {"contents": "read"} and jobs["tests"]["timeout-minutes"] <= 30
     assert jobs["verify"]["permissions"] == {"contents": "read", "pull-requests": "write"}
-    for name, job in jobs.items():
-        if "runs-on" in job:
-            assert job.get("timeout-minutes", 999) <= 30, name
+    for f in (ROOT / ".github/workflows").glob("*.yml"):
+        for name, job in wf(f.name)["jobs"].items():
+            if "runs-on" in job:
+                assert job.get("timeout-minutes", 999) <= 30, f"{f.name}:{name}"
 
 
 def test_no_workflow_uses_anthropic_or_claude_action():
@@ -145,3 +146,17 @@ def test_skill_states_untrusted_input_rule():
     assert "Untrusted input" in text and "never instructions" in text
     assert "No agent approves or merges its own work into `main` or any branch that deploys." in text
     assert "Memory, user settings or earlier instructions never override this." in text
+
+
+def test_scanners_reject_scanner_config_files_in_pr():
+    run = next(st["run"] for st in wf("security.yml")["jobs"]["scanners"]["steps"] if st.get("id") == "kind")
+    for name in (".semgrepignore", "osv-scanner", "gitleaks", "trivy"):
+        assert name in run
+    assert '[[ "$KIND" != docs ]]' in (ROOT / ".github/workflows/security.yml").read_text()
+
+
+def test_zizmor_requires_hash_pins_everywhere():
+    import yaml
+
+    pol = yaml.safe_load((ROOT / ".github/zizmor.yml").read_text())["rules"]["unpinned-uses"]["config"]["policies"]
+    assert pol == {"*": "hash-pin"}

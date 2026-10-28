@@ -123,3 +123,38 @@ def test_hook_logs_authz_events(project):
     hook(root, path="stages.yml")
     events = [json.loads(x)["event"] for x in (root / ".claude/stage-log.jsonl").read_text().splitlines()]
     assert events == ["authz.denied", "authz.ask"]
+
+
+@pytest.mark.parametrize(
+    "p", [".Claude/settings.json", "claude.md", "Stages.yml", ".GITHUB/workflows/x.yml", "docs/specs/0007-demo/trace-0007.md"]
+)
+def test_hook_case_variants_are_protected(project, p):
+    assert hook(project("stage/0007-spec"), path=p) in ("ask", "deny")
+
+
+@pytest.mark.parametrize("p", [".git/hooks/pre-commit", ".mcp.json", ".envrc", ".vscode/settings.json"])
+def test_hook_asks_for_code_running_config(project, p):
+    assert hook(project(), path=p) == "ask"
+
+
+def test_hook_denies_ask_class_outside_default_mode(project):
+    root = project()
+    for mode in ("auto", "acceptEdits", "dontAsk"):
+        assert hook(root, path="stages.yml", extra={"permission_mode": mode}) == "deny", mode
+        assert hook(root, tool="Bash", command="gh pr merge 3", extra={"permission_mode": mode}) == "deny", mode
+
+
+def test_hook_author_scope_comes_from_feature_branch_plan(project):
+    root = project("stage/0007-code")
+    plan = root / "docs/specs/0007-demo/PLAN-0007.md"
+    plan.write_text(plan.read_text() + "| D-02 | `Makefile` | SR-002 | `test_y` |\n")  # edited in the working tree only
+    assert hook(root, path="Makefile", agent=AUTHOR) == "deny"
+
+
+def test_hook_redacts_secrets_in_prompts(project):
+    import json
+
+    root = project()
+    hook(root, tool="Bash", command="GH_TOKEN=ghp_secretvalue gh pr merge 5")
+    detail = json.loads((root / ".claude/stage-log.jsonl").read_text().splitlines()[-1])["detail"]
+    assert "ghp_secretvalue" not in detail

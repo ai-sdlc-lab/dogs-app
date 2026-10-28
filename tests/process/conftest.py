@@ -44,6 +44,7 @@ def project(tmp_path):
         )
         run("add", "-A")
         run("commit", "-qm", "init")
+        run("checkout", "-q", "-b", "feature/0007-demo")  # the reviewed plan lives here
         run("checkout", "-q", "-b", branch)
         return root
 

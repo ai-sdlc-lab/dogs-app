@@ -52,14 +52,16 @@ def test_appsec_checkout_at_lock_sha():
 
 
 def test_stage_refuses_while_aws_admin_logged_in():
-    ok = lambda *a, **k: SimpleNamespace(returncode=0)  # noqa: E731
+    ok = lambda *a, **k: SimpleNamespace(returncode=0, stdout="{}", stderr="")  # noqa: E731
     assert any("aws logout" in e for e in preflight.aws_problems(env={}, run=ok))
-    gone = lambda *a, **k: SimpleNamespace(returncode=255)  # noqa: E731
+    gone = lambda *a, **k: SimpleNamespace(returncode=255, stdout="", stderr="Error: Token has expired")  # noqa: E731
     assert preflight.aws_problems(env={}, run=gone) == []
+    odd = lambda *a, **k: SimpleNamespace(returncode=255, stdout="", stderr="Could not connect to the endpoint URL")  # noqa: E731
+    assert preflight.aws_problems(env={}, run=odd)  # a network error is not proof of logout
 
 
 def test_stage_preflight_rejects_aws_env_credentials():
-    gone = lambda *a, **k: SimpleNamespace(returncode=255)  # noqa: E731
+    gone = lambda *a, **k: SimpleNamespace(returncode=255, stdout="", stderr="Unable to locate credentials")  # noqa: E731
     for k in ("AWS_ACCESS_KEY_ID", "AWS_SESSION_TOKEN", "AWS_PROFILE"):
         assert preflight.aws_problems(env={k: "x"}, run=gone)
 
@@ -75,7 +77,8 @@ def test_stage_log_retention_30_days(tmp_path):
     old = (datetime.now(UTC) - timedelta(days=31)).isoformat().replace("+00:00", "Z")
     log.write_text(json.dumps({"ts": old}) + "\nnot json\n")
     stage_log.write("stage.start", "success", log=log, change="0007")
-    assert stage_log.prune(log) == 2 and len(log.read_text().splitlines()) == 1
+    assert stage_log.prune(log) == 1  # the old entry; the unparsable line is kept as evidence
+    assert len(log.read_text().splitlines()) == 2
 
 
 def test_log_events_have_required_fields_and_no_secrets(tmp_path):
@@ -93,3 +96,34 @@ def test_final_pr_body_lists_protected_changes(tmp_path):
     body = final_pr_body.body(paths, root=tmp_path, diff_text="uses: x/verify.yml@abc")
     assert "`.github/workflows/security.yml`" in body and "`stages.yml`" in body and "api/app/main.py" not in body
     assert "EXC-002: security-code-reviewer SCR-001 (SR-004)" in body and "verifier pin" in body
+
+
+def test_final_pr_body_lists_renamed_protected_files_and_codeowners_paths(tmp_path):
+    (tmp_path / ".github").mkdir()
+    (tmp_path / ".github/CODEOWNERS").write_text("/infra/ @o\n/docs/specs/**/THREAT-*.md @o\n")
+    paths = ["infra/main.tf", "docs/specs/0007-x/THREAT-0007.md", "api/.semgrepignore", "Makefile", "web/src/a.ts"]
+    body = final_pr_body.body(paths, root=tmp_path)
+    for p in paths[:4]:
+        assert p in body
+    assert "web/src/a.ts" not in body
+    assert "`a`b`" not in final_pr_body.body(["infra/a`b"], root=tmp_path)
+
+
+def test_stage_log_rejects_field_overrides(tmp_path):
+    import pytest
+
+    for k in ("event", "outcome", "ts", "service", "version", "level"):
+        with pytest.raises((ValueError, TypeError)):
+            stage_log.write("gate.allow", "success", log=tmp_path / "l.jsonl", **{k: "forged"})
+
+
+def test_stage_log_prune_keeps_unparsable_lines(tmp_path):
+    log = tmp_path / "l.jsonl"
+    log.write_bytes(b"garbage\xff\n")
+    stage_log.prune(log)
+    assert "garbage" in log.read_text(errors="replace")
+
+
+def test_preflight_hook_self_test_passes():
+    assert preflight.hook_self_test() == []
+    assert preflight.settings_problems() == []

@@ -11,3 +11,12 @@
 /appsec-baseline.lock                   @nkalexiou
 /scripts/                               @nkalexiou
 /docs/specs/**/reviews/                 @nkalexiou
+# Scanner configs would be loaded from the PR; the scanners job also rejects them (change 0001).
+**/.gitleaks.toml                       @nkalexiou
+**/.gitleaksignore                      @nkalexiou
+**/.semgrepignore                       @nkalexiou
+**/osv-scanner.toml                     @nkalexiou
+**/trivy.yaml                           @nkalexiou
+**/.trivyignore                         @nkalexiou
+/Makefile                               @nkalexiou
+/tests/process/                         @nkalexiou

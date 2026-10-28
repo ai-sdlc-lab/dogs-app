@@ -1,8 +1,7 @@
 name: deploy
 
 # main → build → DAST (ZAP on the release in kind) → deploy. No AI in CI (change 0001).
-# Deploy waits for the tester (decision 2026-10-21). The tester runs from appsec-baseline's
-# reusable workflow on its protected main branch.
+# Deploy waits for build and the ZAP baseline (dast); ZAP alerts don't stop it until change 0002 (EXC-001).
 
 on:
   push:
