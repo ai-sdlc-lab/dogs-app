@@ -1,0 +1,49 @@
+{
+  "reviewer": "security-architect",
+  "findings": [
+    {
+      "id": "ARC-032",
+      "reviewer": "security-architect",
+      "severity": "medium",
+      "sr_ref": "SR-031",
+      "file": "docs/specs/0001-local-stage-loop/PLAN-0001.md",
+      "line": 52,
+      "evidence": "M-29 requires the 'owner memory entry on merge rules updated'; PLAN L-03 only edits 'sdlc-lab/.claude/settings.local.json' and lists a manual check 'memory index and local settings list no merge or apply autonomy'. No step changes the memory entry, which today still reads 'Claude may merge PRs + make apply'.",
+      "recommendation": "Add an owner-approved step (outside the repo and hook, boundary 14) that removes or rewrites the temporary-merge-apply-autonomy memory entry and MEMORY.md line, ordered before the final PR to main is opened and before the first end-to-end /stage run; name who verifies (owner) and what is checked.",
+      "blocking": false
+    },
+    {
+      "id": "ARC-033",
+      "reviewer": "security-architect",
+      "severity": "medium",
+      "sr_ref": "SR-031",
+      "file": "docs/specs/0001-local-stage-loop/PLAN-0001.md",
+      "line": 20,
+      "evidence": "Files column of A-01, A-02, A-04, A-05, A-06, A-08, A-09, A-10, A-11 and A-12 lists no test files (only A-03 and A-07 do), yet M-11/test_plan_drift_fails_on_unlisted_file allow the author to write only files in the repo's PLAN section.",
+      "recommendation": "List test files or globs (for example stage/tests/**, gate/test_*.py, tests/process/**) in each step so the named tests can be written under the author scope and plan_drift without widening the hook or editing the plan later.",
+      "blocking": false
+    },
+    {
+      "id": "ARC-034",
+      "reviewer": "security-architect",
+      "severity": "low",
+      "sr_ref": "SR-031",
+      "file": "docs/specs/0001-local-stage-loop/PLAN-0001.md",
+      "line": 9,
+      "evidence": "Step 3: 'make plan shown; applied on the owner's OK' does not say who runs the apply. M-04 refuses /stage while the sdlc-lab-admin session is live, and L-03 removes the session's make apply allow rules in the same step.",
+      "recommendation": "State that the owner runs make apply in their own terminal, outside any /stage session, and logs the admin session out afterwards.",
+      "blocking": false
+    },
+    {
+      "id": "ARC-035",
+      "reviewer": "security-architect",
+      "severity": "low",
+      "sr_ref": "SR-030",
+      "file": "docs/specs/0001-local-stage-loop/PLAN-0001.md",
+      "line": 7,
+      "evidence": "Step 1 merges appsec-baseline to main (the lock SHA) while its new required checks 'gate' and 'scanners' are only set by L-01 in step 3; dogs-app main keeps calling 'security-review.yml@main' until its final merge; the final-PR protected-change list comes from scripts/final_pr_body.py written in the same PR.",
+      "recommendation": "Require green scanners and stage tests on the step 1 PR as owner approval evidence; accept that dogs-app main reviewers follow appsec-baseline main in the interim; owner checks git diff --stat on protected paths for 0001's final PR rather than relying only on the generated list.",
+      "blocking": false
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "reviewer": "architecture-conformance",
+  "round": 2,
+  "verdict": "allow",
+  "round1_resolved": [
+    "AC-001 (D-10 adds hashed tests/process/requirements.in/.txt; A-01 one hashed lockfile for gate/ and stage/)",
+    "AC-002 (D-07 tests job command, JUnit artifact, 20 min; D-10 Makefile test-process and ci.yml hook tests moved to tests job)",
+    "AC-003 (A-03 extends gate/security_gate.py in place, SPEC's gate.py = that file; single lockfile)",
+    "AC-004 (D-02 appsec_checkout.py at lock SHA; D-03 --plugin-dir .appsec-baseline stated in CLAUDE.md; D-05 hook writes authz.denied/ask to the stage log; D-03 stage_log.py 30-day retention)",
+    "AC-005 (A-11 README/plugin.json lists; D-11 architecture.md trust boundary 5 and title replaced)",
+    "AC-006 (Lock changes section and the decided default: appsec-baseline scanners job not required until L-01, owner approval is the gate)",
+    "AC-007 (D-11 re-enable list covers caller jobs, security-tester, required checks, variables, federation rules, service accounts, allowlist entry)",
+    "AC-008 (A-10 semgrep/tls.yml plus test, run in appsec-baseline ci.yml scanners)"
+  ],
+  "findings": [
+    {
+      "id": "AC-201",
+      "section": "Repo: dogs-app, D-03 (and D-01/D-06 cross-listed tests)",
+      "severity": "low",
+      "needs_human": false,
+      "evidence": "SPEC 2.5 step 8: named_tests.py requires every test named in this repo's PLAN section to exist in the dogs-app test tree and pass in the dogs-app tests-job JUnit. D-03 names test_structure_fails_on_empty_section, which the plan only creates in appsec-baseline (A-05/A-12 stage/tests). D-03's listed dogs-app test files (test_skill, test_final_pr_body, test_stage_log) do not obviously contain it. D-06 also names test_agents_match_spec_table, which lives in D-04's test_agents.py. That one is fine because the test runs from the directory.",
+      "recommendation": "At the code stage, make sure dogs-app tests/process has a test with that exact name (for example a template-structure check in test_skill.py that imports .appsec-baseline/stage/structure.py), or drop the name from D-03. The plan-drift rule lets the plan be updated in the same PR. This does not block the plan."
+    }
+  ]
+}
