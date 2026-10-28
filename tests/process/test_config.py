@@ -160,3 +160,9 @@ def test_zizmor_requires_hash_pins_everywhere():
 
     pol = yaml.safe_load((ROOT / ".github/zizmor.yml").read_text())["rules"]["unpinned-uses"]["config"]["policies"]
     assert pol == {"*": "hash-pin"}
+
+
+def test_linter_configs_come_from_base():
+    text = (ROOT / ".github/workflows/security.yml").read_text()
+    assert 'git show "$BASE_SHA:.github/zizmor.yml"' in text and '--config "$RUNNER_TEMP/zizmor.yml"' in text
+    assert 'actionlint -config-file "$RUNNER_TEMP/actionlint.yaml"' in text

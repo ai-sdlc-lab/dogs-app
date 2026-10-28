@@ -132,9 +132,12 @@ jobs:
           docker run --rm -v "$PWD:/src" -w /src "$SEMGREP_IMAGE" \
             semgrep scan --config p/default --config .appsec-baseline/semgrep/tls.yml --metrics=off --exclude .appsec-baseline --sarif --output out/semgrep.sarif || true
           trivy config --quiet --ignorefile .appsec-baseline/exceptions/trivyignore --format sarif --output out/trivy.sarif infra/ || true
-          zizmor --offline --format sarif .github/workflows/ > out/zizmor.sarif || true
+          # linter configs come from the base branch, never from the PR (a PR could relax them)
+          git show "$BASE_SHA:.github/zizmor.yml" > "$RUNNER_TEMP/zizmor.yml" 2>/dev/null || printf 'rules: {}\n' > "$RUNNER_TEMP/zizmor.yml"
+          git show "$BASE_SHA:.github/actionlint.yaml" > "$RUNNER_TEMP/actionlint.yaml" 2>/dev/null || printf '{}\n' > "$RUNNER_TEMP/actionlint.yaml"
+          zizmor --offline --config "$RUNNER_TEMP/zizmor.yml" --format sarif .github/workflows/ > out/zizmor.sarif || true
           osv-scanner scan source -r --format json --output-file out/osv.json api web ; echo "osv=$?" >> "$GITHUB_OUTPUT"
-          actionlint; echo "actionlint=$?" >> "$GITHUB_OUTPUT"
+          actionlint -config-file "$RUNNER_TEMP/actionlint.yaml"; echo "actionlint=$?" >> "$GITHUB_OUTPUT"
 
       - name: Upload SARIF (semgrep)
         if: always() && hashFiles('out/semgrep.sarif') != ''

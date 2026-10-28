@@ -127,3 +127,15 @@ def test_stage_log_prune_keeps_unparsable_lines(tmp_path):
 def test_preflight_hook_self_test_passes():
     assert preflight.hook_self_test() == []
     assert preflight.settings_problems() == []
+
+
+def test_stage_log_prune_survives_naive_timestamps(tmp_path):
+    log = tmp_path / "l.jsonl"
+    log.write_text(json.dumps({"ts": "2026-01-01T00:00:00"}) + "\n")
+    stage_log.prune(log)
+    assert "2026-01-01" in log.read_text()
+
+
+def test_final_pr_body_lists_code_running_config(tmp_path):
+    body = final_pr_body.body([".mcp.json", ".vscode/tasks.json", ".envrc"], root=tmp_path)
+    assert ".mcp.json" in body and ".vscode/tasks.json" in body and ".envrc" in body

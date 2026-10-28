@@ -20,3 +20,6 @@
 **/.trivyignore                         @nkalexiou
 /Makefile                               @nkalexiou
 /tests/process/                         @nkalexiou
+/.mcp.json                              @nkalexiou
+/.envrc                                 @nkalexiou
+/.vscode/                               @nkalexiou

@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-EXTRA = [".claude/*", ".github/*", "CLAUDE.md", "REVIEW.md", "stages.yml", "appsec-baseline.lock", "scripts/*", "Makefile", "tests/process/*"]  # plus CODEOWNERS
+EXTRA = [".claude/*", ".github/*", "CLAUDE.md", "REVIEW.md", "stages.yml", "appsec-baseline.lock", "scripts/*", "Makefile", "tests/process/*", ".mcp.json", ".envrc", ".vscode/*", ".git/*"]  # plus CODEOWNERS
 SCANNER_CONFIGS = [".gitleaks.toml", ".gitleaksignore", ".semgrepignore", "osv-scanner.toml", "trivy.yaml", "trivy.yml", ".trivyignore", ".trivyignore.yaml"]
 REF = re.compile(r"^[A-Za-z0-9._/-]{1,200}$")
 _UNSAFE = re.compile(r"[`\x00-\x1f\x7f@<>\[\]]")

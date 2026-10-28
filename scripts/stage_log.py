@@ -83,13 +83,14 @@ def prune(log: Path = LOG, now: datetime | None = None) -> int:
     for line in log.read_bytes().decode("utf-8", "replace").splitlines():
         try:
             ts = datetime.fromisoformat(json.loads(line)["ts"].replace("Z", "+00:00"))
+            old = ts < cutoff  # a naive timestamp raises TypeError here and the line is kept
         except (ValueError, KeyError, TypeError, AttributeError):
             keep.append(line)
             continue
-        if ts >= cutoff:
-            keep.append(line)
-        else:
+        if old:
             dropped += 1
+        else:
+            keep.append(line)
     tmp = log.with_suffix(".tmp")
     tmp.write_text("".join(f"{x}\n" for x in keep))
     os.replace(tmp, log)
