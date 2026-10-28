@@ -1,0 +1,30 @@
+# Stage definitions for the local stage loop (SPEC-0001 §1.2). Owner-protected (CODEOWNERS, ask rule).
+# CI reads this file from the PR's base branch, never from the PR head.
+version: 1
+max_rounds: 3
+stages:
+  intent:
+    artifact: INT
+    template: .claude/skills/stage/templates/INT.md
+    author: author
+    reviewers: [intent-completeness, security-requirements-auditor]
+  spec:
+    artifact: SPEC
+    template: .claude/skills/stage/templates/SPEC.md
+    author: author
+    reviewers: [spec-completeness, security-requirements-auditor, security-architect]
+    produces:
+      security-requirements-auditor: TRACE
+      security-architect: THREAT
+  plan:
+    artifact: PLAN
+    template: .claude/skills/stage/templates/PLAN.md
+    author: author
+    reviewers: [architecture-conformance, security-architect]
+    scripts: [crosscheck]
+  code:
+    author: author
+    reviewers: [security-code-reviewer]
+    conditional:
+      workflow-iac-reviewer: '^(\.github/|infra/)'
+    scripts: [named-tests, plan-drift]

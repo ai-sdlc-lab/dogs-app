@@ -3,11 +3,16 @@ BUCKET := sdlc-lab-app-dogs-dev-992382408037
 PY ?= python3.14
 TF := terraform -chdir=infra
 
-.PHONY: test lint build plan apply destroy seed run-api
+.PHONY: test test-api test-process lint build plan apply destroy seed run-api
 
-test:
+test: test-api test-process
+
+test-api:
 	cd api && $(PY) -m pytest -q
-	$(PY) -m pytest -q .claude/hooks
+
+# Stage-loop tests (change 0001): hook, settings, agents, workflows, scripts. Needs .appsec-baseline/ (scripts/appsec_checkout.py).
+test-process:
+	$(PY) -I -B -m pytest -q -p no:cacheprovider tests/process
 
 lint:
 	cd api && ruff check . && ruff format --check .

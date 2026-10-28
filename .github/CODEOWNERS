@@ -7,3 +7,7 @@
 /infra/                                 @nkalexiou
 /docs/specs/**/THREAT-*.md              @nkalexiou
 /docs/specs/**/TRACE-*.md               @nkalexiou
+/stages.yml                             @nkalexiou
+/appsec-baseline.lock                   @nkalexiou
+/scripts/                               @nkalexiou
+/docs/specs/**/reviews/                 @nkalexiou

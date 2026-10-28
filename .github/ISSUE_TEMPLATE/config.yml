@@ -1,1 +1,1 @@
-blank_issues_enabled: false
+blank_issues_enabled: true # the label-driven feature form was removed in change 0001; issues are collaborators-only (BL-27)
