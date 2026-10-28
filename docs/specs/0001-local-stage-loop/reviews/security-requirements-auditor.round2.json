@@ -1,0 +1,38 @@
+{
+  "reviewer": "security-requirements-auditor",
+  "round1_resolved": [
+    "AUD-001",
+    "AUD-002",
+    "AUD-003",
+    "AUD-005",
+    "AUD-006",
+    "AUD-007",
+    "AUD-008",
+    "AUD-009"
+  ],
+  "artifact": "# Security traceability: 0001-local-stage-loop\n\n<!-- Written by the security-requirements-auditor. Do not edit by hand. -->\n\nRequirements: appsec-baseline `requirements/security-requirements.md` @ `<sha not provided; working copy read>`\nArtifacts reviewed: INT-0001.md @ `<sha not provided; working copy read>` (round 2)\n\n## Triggers\n| Trigger | True? | Why |\n|---|---|---|\n| INPUT | true | The CI verifier reads PR-supplied review reports and artifacts, which are untrusted (§ Trust assumptions). |\n| ENDPOINT | false | \"No change to the dogs-app web UI or API\" (§ Visual). |\n| WRITE | false | No app-level create/change/delete for callers. |\n| FILE | false | No upload, storage or serving of user files; reports are repo files. |\n| AUTHN | true | Operator identity for agent actions moves to the owner's laptop and Claude Code login; Anthropic federation rules and service accounts are deleted (§ What changes). |\n| AUTHZ | true | Required checks, variables, labels and Actions allowlist change in lab-admin; the owner's merge is the gate. |\n| CRYPTO | true | Reports bind to files with SHA-256 hashes (§ Trust assumptions). |\n| DATA | false | The data table lists no personal or sensitive data. |\n| LOG | false | No application or security logging change. |\n| SECRET | true | Federation credentials and repo variables are removed; reports must never quote credentials. |\n| DEP | true | New verifier scripts, pinned CI tools, appsec-baseline plugin as build input. |\n| IAC | true | lab-admin Terraform changes (required checks, variables, labels, allowlist). |\n| CI | true | security.yml, deploy.yml and author.yml change or are removed; new verifier and path-scoped scanners. |\n| AI | true | New author and reviewer subagents, gate, fix loop and escalation. |\n\n## Requirements\n| SR | Level (MUST/SHOULD) | Status (covered / missing / N/A) | Where (artifact § or test) | Justification |\n|---|---|---|---|---|\n| SR-001 | MUST | covered (intent level) | § Trust assumptions | Reports validated by the CI verifier for schema, allowed reviewer names and size limit; missing or malformed fails the check. Spec must give the schema and named tests. |\n| SR-002 | MUST | covered (intent level) | § What changes (security code reviewer, bounded agency); § Out of scope | The security code reviewer is added and the deploy-time tester removal is an owner-accepted, time-boxed exception until 0002 (2026-10-27). Spec must record the exception with an expiry. See AUD-002. |\n| SR-003 | MUST | N/A | none | No HTTP responses or frontend rendering change. |\n| SR-004 | MUST | N/A | none | ENDPOINT is false. The known violation is out of scope (§ Out of scope). |\n| SR-005 | MUST | N/A | none | ENDPOINT is false. |\n| SR-006 | MUST | N/A | none | ENDPOINT and FILE are false. |\n| SR-007 | MUST | N/A | none | WRITE, FILE and ENDPOINT are false. |\n| SR-008 | MUST | N/A | none | FILE is false. |\n| SR-009 | MUST | N/A | none | FILE is false. |\n| SR-010 | MUST | N/A | none | FILE is false. |\n| SR-011 | MUST | N/A | none | FILE is false. |\n| SR-012 | MUST | N/A | none | FILE is false. |\n| SR-013 | MUST | N/A | none | FILE is false. |\n| SR-014 | MUST | N/A | none | FILE is false. |\n| SR-015 | MUST | N/A | none | FILE and WRITE are false. |\n| SR-016 | MUST | N/A | none | AUTHN applies only to operators and agents; app user sign-in is unchanged. |\n| SR-017 | MUST | N/A | none | Owner decision: MFA on the owner's personal accounts is out of scope for this change. Not raised again. |\n| SR-018 | MUST | N/A | none | No bearer-token validation by the app changes. |\n| SR-019 | MUST | N/A | none | No browser token or cookie handling changes. |\n| SR-020 | MUST | N/A | none | No app endpoints or objects change. Merge authorisation is assessed under SR-030 and SR-031. |\n| SR-021 | MUST | covered (intent level) | § Trust assumptions | \"Report-to-file binding uses SHA-256 over file contents (not git's SHA-1 object IDs).\" Spec adds it to the crypto inventory. |\n| SR-022 | MUST | N/A | none | No TLS or AWS resource change; GitHub settings only. |\n| SR-023 | MUST | covered (intent level) | § Data handled | Reports hold no personal data and must never quote credentials. |\n| SR-024 | MUST | N/A | none | No application logging or endpoints change. |\n| SR-025 | MUST | N/A | none | DATA is false. |\n| SR-026 | MUST (+SHOULD) | covered (intent level) | § What changes (clean-up); § Success criteria 8; § Data handled | Federation rules and service accounts are deleted, the Claude GitHub App is uninstalled, no ANTHROPIC_* variable stays in Terraform. gitleaks runs on docs-only PRs. |\n| SR-027 | MUST | covered (intent level) | § Trust assumptions | appsec-baseline is pinned in dogs-app, the verifier fails on a different recorded commit, and new CI tools are pinned by version and SHA-256. Spec must list the pins. |\n| SR-028 | MUST | N/A | none | No AWS IAM change. |\n| SR-029 | MUST | N/A | none | No AWS resources change. |\n| SR-030 | MUST | covered (intent level) | § Trust assumptions (fail-closed path scoping); § What changes (CODEOWNERS approval of .github edits) | Any path outside docs/ runs the full scanner set and required checks come from always-running jobs. Spec must give the workflow hardening values for the verifier job. |\n| SR-031 | MUST | covered (intent level) | § What changes (bounded agency, SR escalation, model per agent, standing permissions removed); § Trust assumptions | Explicit tool allow lists, read-only reviewers, author write scope, and no agent merges, approves, pushes to main or runs make apply. Spec must give full model IDs, maxTurns and the enforcement mechanism. |\n\n## Summary\nCovered (intent level): 8 · Missing: 0 · N/A: 23 (SR-017 by owner decision)\n",
+  "findings": [
+    {
+      "id": "AUD-001",
+      "reviewer": "security-requirements-auditor",
+      "severity": "low",
+      "sr_ref": "SR-002",
+      "file": "docs/specs/0001-local-stage-loop/INT-0001.md",
+      "line": 57,
+      "evidence": "Intent: \"nothing stops it on a ZAP alert: accepted by the owner (2026-10-27) as a time-boxed exception until 0002.\" The time box is tied to a change, not a date, and the exceptions/ record (SR, reason, expiry) is not mentioned.",
+      "recommendation": "In the spec or plan, record this as an exceptions/ entry in appsec-baseline with the SR refs (SR-002, SR-020, SR-024), the reason and a calendar expiry date, so the gate can read it.",
+      "blocking": false
+    },
+    {
+      "id": "AUD-002",
+      "reviewer": "security-requirements-auditor",
+      "severity": "info",
+      "sr_ref": "SR-031",
+      "file": "docs/specs/0001-local-stage-loop/INT-0001.md",
+      "line": 35,
+      "evidence": "Intent: \"reviewers run on smaller models (Sonnet 5.5 or Haiku 4.5, set per agent); Opus 5.5 only for the main session\". SR-031 requires models pinned by full ID and maxTurns set, and the intent names neither the full IDs nor maxTurns.",
+      "recommendation": "spec.md must state full model IDs and maxTurns per agent, the tool allow lists, and what enforces them (agent frontmatter, permission settings or hooks), each with a named test.",
+      "blocking": false
+    }
+  ]
+}

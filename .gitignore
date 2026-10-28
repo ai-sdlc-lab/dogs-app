@@ -7,3 +7,7 @@ build/
 *.tfstate
 *.tfstate.*
 tfplan
+
+# local stage loop
+.appsec-baseline/
+.claude/stage-log.jsonl

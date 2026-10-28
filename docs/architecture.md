@@ -1,4 +1,4 @@
-# Architecture (as built, Phase 3)
+# Architecture (as built; process as of change 0001)
 
 ```
 browser ──HTTPS──> Lambda function URL (auth NONE, public, read-only)
@@ -14,7 +14,8 @@ browser ──HTTPS──> Lambda function URL (auth NONE, public, read-only)
 2. Lambda → S3: execution role `sdlc-lab-app-dogs-api-dev` (list `dogs/`, read `dogs/*`, write its log group); carries `sdlc-lab-boundary`.
 3. Browser → S3: presigned GET only; the bucket rejects unsigned reads.
 4. GitHub Actions → AWS: OIDC, role `sdlc-lab-gh-dogs-app-dev`, environment `dev` (main only).
-5. GitHub Actions → Claude API: OIDC workload identity federation (Anthropic rules pinned to the reviewer workflow commit and the author workflow on `main`).
+5. Owner's laptop session → Claude (subscription) and → GitHub with the owner's login: authoring and reviews run as local subagents (change 0001, ADR-0001). The session merges into feature branches only; merging into `main` is the owner's.
+6. GitHub Actions → appsec-baseline: the CI verifier and its scripts run at the commit in `appsec-baseline.lock`; CI calls no AI.
 
 ## Data
 Images (CC0 seed set) and their breed (from the key). No users, no personal data, no writes.

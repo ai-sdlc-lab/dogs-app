@@ -1,0 +1,138 @@
+{
+  "reviewer": "security-requirements-auditor",
+  "artifact": "# TRACE-0001: security traceability\n\n<!-- Written by the security-requirements-auditor. Do not edit by hand. -->\n\nRequirements: appsec-baseline `requirements/security-requirements.md` (working tree; commit SHA not available to the auditor; SR-031 assessed with the amended text in SPEC-0001 §9)\nArtifacts reviewed: SPEC-0001.md (stage: spec) with INT-0001.md and reviews/INT-0001-status.md as context (working tree; commit SHA not available to the auditor)\n\n## Triggers\n| Trigger | True? | Why |\n|---|---|---|\n| INPUT | true | The CI verifier, `classify.py`, `hash.py` and the gate parse review reports, file names and PR content that come from the PR (SPEC §2.2, §2.5); SPEC §9 itself treats reports as untrusted input. |\n| ENDPOINT | false | No HTTP endpoint or served page is added or changed; no change to the dogs-app API or UI (INT-0001 Visual: none). |\n| WRITE | false | No caller creates, changes or deletes application data. |\n| FILE | false | No file upload, storage or serving in the app; review reports are small git-tracked JSON files (SPEC §2.2), not user file handling. |\n| AUTHN | false | No change to how callers or operators are identified; the session keeps the owner's existing GitHub login (SPEC §4, owner decision 2026-10-28). |\n| AUTHZ | true | SPEC §5 defines an authorisation matrix of actions by owner, main session, subagents and CI, enforced by hooks and GitHub. |\n| CRYPTO | true | SHA-256 over file contents binds reports to files (SPEC §2.2, §9 SR-021). |\n| DATA | true | Artifacts, reports, exceptions and logs are stored and transmitted; SPEC §6 inventories them (no personal data claimed). |\n| LOG | true | SPEC §7 adds session summary lines and CI job logs and summaries. |\n| SECRET | true | CI uses `GITHUB_TOKEN`; federation rules, service accounts and variables are removed (SPEC §4, §8). |\n| DEP | true | New scripts and a reusable workflow; pinned tools and appsec-baseline lock (SPEC §2.1, §2.5, §2.6). |\n| IAC | true | lab-admin `github.tf` changes (required checks, variables, labels, allowlist; SPEC §8). No AWS or IAM change. |\n| CI | true | New `verify.yml`, `security.yml` changes, `deploy.yml` job removed (SPEC §2.5–2.7, §8). |\n| AI | true | The whole change adds the local agent loop, agent tools, models and gate (SPEC §1, §2.3). |\n\n## Requirements\n| SR | Level (MUST/SHOULD) | Status (covered / missing / N/A) | Where (artifact § or test) | Justification |\n|---|---|---|---|---|\n| SR-001 | MUST | missing | SPEC §2.2, §9 | Schema has `additionalProperties: false`, a 256 KiB size limit, enums and `round` 1–3, but no max length or pattern for `model`, `files` keys, `file`, `evidence` or `recommendation`; no limit on array items; no UTF-8 or control-character rule; no Inputs table. See AUD-001. |\n| SR-002 | MUST | missing | SPEC §9, §2.5 | States file names are data and `env` only, but not that report `files` keys are repo-relative and symlink-free before being opened, that subprocess calls take argument lists, that YAML is loaded safely, and has no named test. See AUD-002. |\n| SR-003 | MUST | missing | SPEC §1.7 | INPUT is true, so the requirement applies. The verifier and `security-review.yml` post PR comments containing one-line evidence quoted from PR files; no text says the quoted text is escaped or neutralised. SPEC §9 lists SR-003 as not applicable. See AUD-003. |\n| SR-004 | MUST | N/A | — | ENDPOINT is false: no response is produced or changed. |\n| SR-005 | MUST | N/A | — | ENDPOINT is false: no API error responses are added. |\n| SR-006 | MUST | N/A | — | ENDPOINT and FILE are false: no new application outbound calls. |\n| SR-007 | MUST | N/A | — | WRITE, FILE and ENDPOINT are false: no function, write path or memory setting changes. |\n| SR-008 | MUST | N/A | — | FILE is false: no uploads. |\n| SR-009 | MUST | N/A | — | FILE is false: no uploads. |\n| SR-010 | MUST | N/A | — | FILE is false: no image handling. |\n| SR-011 | MUST | N/A | — | FILE is false: no image handling. |\n| SR-012 | MUST | N/A | — | FILE is false: no storage keys. |\n| SR-013 | MUST | N/A | — | FILE is false: nothing is served from storage. |\n| SR-014 | MUST | N/A | — | FILE is false: no uploads to scan. |\n| SR-015 | MUST | N/A | — | FILE and WRITE are false: no user quota. |\n| SR-016 | MUST | N/A | — | AUTHN is false: no change to user sign-in. |\n| SR-017 | MUST | N/A | — | AUTHN is false; owner-account MFA is out of scope by owner decision (status file, round 1). |\n| SR-018 | MUST | N/A | — | Applies only through AUTHZ, but no bearer token is accepted or validated by code in this change; `GITHUB_TOKEN` is validated by GitHub. |\n| SR-019 | MUST | N/A | — | AUTHN is false: no browser tokens or cookies. |\n| SR-020 | MUST | missing | SPEC §5, §10 | Matrix exists with roles and an enforcement mechanism, but several cells have no named test: `make apply` deny, `.github/` edit by main session outside the code stage, `stages.yml` and `appsec-baseline.lock` ask, main-session write limits for `INT/SPEC/PLAN`, reviewer write deny; default-deny not stated. See AUD-004. |\n| SR-021 | MUST | missing | SPEC §2.2, §9 | Covered: SHA-256 via `hash.py` (hashlib), no SHA-1, no random values. Missing: the crypto inventory (lab-admin BASELINE) update that the requirement demands for every use of cryptography. See AUD-005. |\n| SR-022 | MUST | missing | SPEC §2.5 | IAC and CRYPTO make it applicable. No AWS or S3 change, but the new connections (GitHub compare API, git checkouts, `gh`) are not stated as TLS-only with certificate validation on. See AUD-006. |\n| SR-023 | MUST | covered | SPEC §6, §9 | No new data store is provisioned by this change; artifacts in git and Actions logs contain no personal or sensitive data, with redaction and gitleaks. Encryption at rest of the GitHub-managed stores is not stated (low, AUD-007). |\n| SR-024 | MUST | missing | SPEC §7 | LOG is true. §7 gives free-form summary lines only: no JSON Lines, no mandatory fields (`ts`, `level`, `event`, `outcome`, `request_id`, `actor`, ...), no event names, no never-logged list; EXC-001 does not cover this. See AUD-008. |\n| SR-025 | MUST | covered | SPEC §6 | Data inventory with purpose, storage, retention and personal-data column; no third-party sharing, no trackers. |\n| SR-026 | MUST | covered | SPEC §4, §6, §8, §9 | No new secrets; only `GITHUB_TOKEN`; Anthropic federation rules, service accounts, variables and App removed; gitleaks on every PR. Evidence for redaction is weak (AUD-009). |\n| SR-027 | MUST | missing | SPEC §2.5, §2.6, §9 | Lock SHA and scanner pins are covered. Missing: caller uses `verify.yml@main`, the scanners job checks out appsec-baseline at `ref: main`, no hashed pin for the scripts' Python dependencies, no SHA pins for actions in `verify.yml`. See AUD-010. |\n| SR-028 | MUST | N/A | — | IAC is true, but no IAM policy, role or trust policy is added or changed; the apply touches GitHub rulesets, variables, labels and allowlist only (SPEC §8). |\n| SR-029 | MUST | N/A | — | IAC is true, but no S3 bucket, resource policy or AWS resource is added or changed. |\n| SR-030 | MUST | missing | SPEC §2.5, §2.7, §9 | `verify.yml` is fully specified (pull_request, `permissions: {}`, `persist-credentials: false`, 15 min, env-only). The new `security-gate` job has no timeout, permissions or skipped-needs rule. See AUD-011. |\n| SR-031 | MUST | covered | SPEC §1.3, §2.3, §5, §7, §9 | Allow lists, read-only reviewers, full model IDs, maxTurns, untrusted-input rule in every prompt, schema validation and escalation of invalid output and injection; amended no-merge-into-main text in §9. Evidence for model and maxTurns enforcement is weak (AUD-012). |\n\n## Summary\nCovered: 4 · Missing: 9 · N/A: 18\n",
+  "findings": [
+    {
+      "id": "AUD-001",
+      "reviewer": "security-requirements-auditor",
+      "severity": "high",
+      "sr_ref": "SR-001",
+      "file": "dogs-app/docs/specs/0001-local-stage-loop/SPEC-0001.md",
+      "line": 70,
+      "evidence": "§2.2 lists `model` as 'full model ID (2.3)' and `files` as 'path → SHA-256 hex'; the only size control is 'File size ≤ 256 KiB'. No max length, pattern, UTF-8 or control-character rule for strings, and no limit on number of `files` entries or `findings`.",
+      "recommendation": "Add an Inputs table for the report: max length and pattern per string (model, file paths, id, evidence, recommendation), valid UTF-8 and no control characters, maxItems for files and findings, and a test_report_schema_* case per rejected class.",
+      "blocking": true
+    },
+    {
+      "id": "AUD-002",
+      "reviewer": "security-requirements-auditor",
+      "severity": "medium",
+      "sr_ref": "SR-002",
+      "file": "dogs-app/docs/specs/0001-local-stage-loop/SPEC-0001.md",
+      "line": 189,
+      "evidence": "§9 SR-002: 'Verifier and scripts handle file names only as data (no shell interpolation; `env` only)'. Report `files` keys come from the untrusted PR and are opened to compute hashes; no rule on absolute paths, `..`, or symlinks, no safe YAML loading, no named test.",
+      "recommendation": "State that `files` keys must be repo-relative, inside docs/specs or the listed code paths, without `..` and not symlinks; subprocess calls use argument lists of fixed executables; YAML uses safe_load; add a named test (e.g. test_hash_rejects_path_outside_repo).",
+      "blocking": false
+    },
+    {
+      "id": "AUD-003",
+      "reviewer": "security-requirements-auditor",
+      "severity": "high",
+      "sr_ref": "SR-003",
+      "file": "dogs-app/docs/specs/0001-local-stage-loop/SPEC-0001.md",
+      "line": 44,
+      "evidence": "§1.7: the CI comment lists 'ID, SR, file:line, one-line evidence, decision needed'. Evidence is quoted from PR content, an untrusted source, and nothing says it is escaped; §9 treats SR-003 as not applicable although INPUT is true.",
+      "recommendation": "Specify that untrusted text in PR comments is rendered as inert text (code span with backticks neutralised, no @mentions, no links or images, truncated to a stated length) and add a named test with a malicious evidence string.",
+      "blocking": true
+    },
+    {
+      "id": "AUD-004",
+      "reviewer": "security-requirements-auditor",
+      "severity": "medium",
+      "sr_ref": "SR-020",
+      "file": "dogs-app/docs/specs/0001-local-stage-loop/SPEC-0001.md",
+      "line": 145,
+      "evidence": "§5 matrix has cells 'make apply, terraform apply ... no (deny)', 'Edit .github/ ... yes (code stage only)', 'Edit ... stages.yml, appsec-baseline.lock ... ask', but §10 only names hook tests for subagent writes, `.claude/` ask and merge ask. Default-deny is not stated.",
+      "recommendation": "State that the hook and settings default to deny for anything not allowed in the matrix, and add a named test for every remaining cell (make apply deny, .github/ outside code stage, stages.yml and lock ask, TRACE/THREAT main-session-only, reviewer writes denied).",
+      "blocking": false
+    },
+    {
+      "id": "AUD-005",
+      "reviewer": "security-requirements-auditor",
+      "severity": "medium",
+      "sr_ref": "SR-021",
+      "file": "dogs-app/docs/specs/0001-local-stage-loop/SPEC-0001.md",
+      "line": 191,
+      "evidence": "§9 SR-021: 'SHA-256 over file contents, computed by `hash.py`; never git SHA-1 object IDs'. No mention of recording this use in the crypto inventory (lab-admin BASELINE), which SR-021 requires for every use of cryptography.",
+      "recommendation": "Add the BASELINE crypto inventory entry (SHA-256 report-to-file binding) to §8 clean-up and to the lab-admin PR scope.",
+      "blocking": false
+    },
+    {
+      "id": "AUD-006",
+      "reviewer": "security-requirements-auditor",
+      "severity": "medium",
+      "sr_ref": "SR-022",
+      "file": "dogs-app/docs/specs/0001-local-stage-loop/SPEC-0001.md",
+      "line": 119,
+      "evidence": "§2.5 step 2 uses the 'GitHub compare API' and step 3 checks out appsec-baseline; no statement that all connections use TLS 1.2+ with certificate validation enabled.",
+      "recommendation": "Add one line: all new connections (GitHub API, git, gh) use HTTPS only with certificate validation on; no --insecure, verify=False or http:// URLs; cover with the Semgrep TLS rules already run on code PRs.",
+      "blocking": false
+    },
+    {
+      "id": "AUD-007",
+      "reviewer": "security-requirements-auditor",
+      "severity": "low",
+      "sr_ref": "SR-023",
+      "file": "dogs-app/docs/specs/0001-local-stage-loop/SPEC-0001.md",
+      "line": 162,
+      "evidence": "§6 data inventory lists git and 'GitHub Actions' as storage but does not say they are encrypted at rest (GitHub-managed) nor that Terraform state is unchanged by the lab-admin edits.",
+      "recommendation": "Add one sentence in §6 stating GitHub-managed encryption at rest and that no new data store or Terraform state change is introduced.",
+      "blocking": false
+    },
+    {
+      "id": "AUD-008",
+      "reviewer": "security-requirements-auditor",
+      "severity": "high",
+      "sr_ref": "SR-024",
+      "file": "dogs-app/docs/specs/0001-local-stage-loop/SPEC-0001.md",
+      "line": 173,
+      "evidence": "§7: 'Session: per stage one summary line (stage, round, verdict, findings count, model)'; 'CI: every check prints what it checked and the result to the job log'. No JSON Lines, no mandatory fields, no event names for denied hook actions or escalations, no never-logged list; EXC-001 does not cover SR-024 for these logs.",
+      "recommendation": "Define the log format for hook, gate and verifier events (JSON Lines with the SR-024 fields or the applicable subset, events such as authz.denied and input.rejected), list never-logged items (tokens, Authorization headers, presigned URLs, file contents), or record a lab exception with expiry.",
+      "blocking": true
+    },
+    {
+      "id": "AUD-009",
+      "reviewer": "security-requirements-auditor",
+      "severity": "medium",
+      "sr_ref": "SR-026",
+      "file": "dogs-app/docs/specs/0001-local-stage-loop/SPEC-0001.md",
+      "line": 171,
+      "evidence": "§6: '`redact.py` runs on every reviewer output before it's written'. `redact.py` is absent from the §2.1 script table and from §10; no patterns and no named test.",
+      "recommendation": "Add `redact.py` to §2.1, state what it redacts, and add named tests (e.g. test_redact_removes_token_patterns, test_redaction_escalates).",
+      "blocking": false
+    },
+    {
+      "id": "AUD-010",
+      "reviewer": "security-requirements-auditor",
+      "severity": "high",
+      "sr_ref": "SR-027",
+      "file": "dogs-app/docs/specs/0001-local-stage-loop/SPEC-0001.md",
+      "line": 117,
+      "evidence": "§2.5: 'called from dogs-app `security.yml` job `verify` as `uses: …/verify.yml@main`'; the existing scanners job checks out appsec-baseline with `ref: main`. No hashed pin for the scripts' Python dependencies (jsonschema, YAML) and no SHA pins stated for actions in `verify.yml`.",
+      "recommendation": "Pin the reusable workflow and the scanners checkout to the lock SHA or document a justified deviation; install script dependencies with --require-hashes; pin every action in verify.yml by commit SHA from the BL-01 allowlist.",
+      "blocking": true
+    },
+    {
+      "id": "AUD-011",
+      "reviewer": "security-requirements-auditor",
+      "severity": "medium",
+      "sr_ref": "SR-030",
+      "file": "dogs-app/docs/specs/0001-local-stage-loop/SPEC-0001.md",
+      "line": 133,
+      "evidence": "§2.7: 'security-gate (= verify + scanners)'. The new job has no stated timeout-minutes, permissions or rule that a skipped or cancelled needed job fails the gate.",
+      "recommendation": "State for security-gate: permissions {}, timeout-minutes (at most 30), runs with always() and fails unless every needed job result is success; add a named test or actionlint check.",
+      "blocking": false
+    },
+    {
+      "id": "AUD-012",
+      "reviewer": "security-requirements-auditor",
+      "severity": "medium",
+      "sr_ref": "SR-031",
+      "file": "dogs-app/docs/specs/0001-local-stage-loop/SPEC-0001.md",
+      "line": 223,
+      "evidence": "§10 names only `test_agents_have_no_shell_or_network_tools` (parses every agent's frontmatter). No test asserts full model IDs, maxTurns and exact tool lists match §2.3; 'The main session runs on `claude-opus-5-5`' has no enforcement; the carried AUD-002 asked for named tests.",
+      "recommendation": "Add test_agents_match_spec_table (model, maxTurns, tools equal to §2.3, model is a full ID) and set the main-session model in committed project settings, covered by the same test.",
+      "blocking": false
+    }
+  ]
+}

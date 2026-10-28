@@ -1,0 +1,17 @@
+{
+  "reviewer": "security-requirements-auditor",
+  "stage": "spec",
+  "change": "0001",
+  "model": "claude-sonnet-5-5",
+  "round": 3,
+  "appsec_sha": "7b4926138f6e2165d8abe7973352f1ca540a34f2",
+  "files": {
+    "docs/specs/0001-local-stage-loop/INT-0001.md": "e96a172dd6d41a1db1ade8b92fd772a4e8ed381e2188a7d752942d114ac2fc54",
+    "docs/specs/0001-local-stage-loop/SPEC-0001.md": "2c3e7d0872224315761e4205e892e725ad8d6ea22420912a59cf3104c39ac506"
+  },
+  "produced": {
+    "docs/specs/0001-local-stage-loop/TRACE-0001.md": "48146c71bbf2d9cf210949154c0dadb1f5c7797f0d3803a247ce6be153c76d89"
+  },
+  "verdict": "allow",
+  "findings": []
+}
