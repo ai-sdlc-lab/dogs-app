@@ -1,0 +1,46 @@
+{
+  "reviewer": "spec-completeness",
+  "verdict": "block",
+  "findings": [
+    {
+      "id": "SC-001",
+      "section": "1.1",
+      "severity": "high",
+      "needs_human": true,
+      "evidence": "SPEC mentions `feature/<NNNN>-<slug>` and `docs/specs/<NNNN>-<slug>/` branch and folder names throughout (sections 1.1, 1.6, etc.) but never defines what `<slug>` should be: whether it is user-provided as a separate command argument, auto-derived from the `<idea>` text, or if it must match a pattern (e.g., kebab-case). This blocks implementation of the `/stage intent` command.",
+      "recommendation": "Define: (a) whether slug is user input, auto-generated from idea, or fixed; (b) if derived, what pattern it must match; (c) any constraints on length or characters. Add to section 1.1."
+    },
+    {
+      "id": "SC-002",
+      "section": "1.2, 2.5",
+      "severity": "high",
+      "needs_human": false,
+      "evidence": "INT-0001 explicitly states the PLAN should have 'one section per repo; one code PR per repo; plan drift checked per repo against its section.' SPEC-0001 section 1.2 table and 2.5 step 7 reference 'the repo's `PLAN-` section' but provide no specification of how PLAN-<NNNN>.md should be structured to contain multiple repos (dogs-app, lab-admin) with per-repo sections. Section 2.5 step 7 says plan_drift.py checks 'changed files ⊆ files listed in the repo's `PLAN-` section' but the algorithm for identifying which section applies to each file is undefined.",
+      "recommendation": "Specify the PLAN-<NNNN>.md structure for multi-repo changes: define that it contains distinct sections per repo (one per line or block heading with repo name), what each section lists (changed files for that repo), and how scripts identify which section applies to files in each repository."
+    },
+    {
+      "id": "SC-003",
+      "section": "1.2",
+      "severity": "medium",
+      "needs_human": false,
+      "evidence": "Stage definitions table (1.2) says reviewers 'write `TRACE-<NNNN>.md`' and 'write `THREAT-<NNNN>.md`', but section 5 (Authorization matrix) states 'Write `TRACE-/THREAT-` files' is allowed only by main session 'copies reviewer output' and explicitly denied to reviewer subagents (hook). This apparent contradiction is resolved by authorization matrix but remains unclear in section 1.2.",
+      "recommendation": "Clarify section 1.2: instead of 'writes', say reviewers 'produce content for `TRACE-<NNNN>.md` and `THREAT-<NNNN>.md`' (via review artifacts), and add to 1.6 that after gate passes the session copies reviewer outputs into these files in appsec-baseline."
+    },
+    {
+      "id": "SC-004",
+      "section": "2.5 step 7",
+      "severity": "high",
+      "needs_human": false,
+      "evidence": "Step 7 lists 'plan_drift.py (changed files ⊆ files listed in the repo's `PLAN-` section)' but provides no pseudocode or algorithm for how the script: (a) identifies which repo each changed file belongs to; (b) parses the PLAN file structure; (c) maps files to the correct per-repo section. This is blocked on SC-002 (PLAN structure definition).",
+      "recommendation": "Once PLAN structure is defined in SC-002, specify how plan_drift.py parses sections and validates that every changed file in a repo is listed in that repo's PLAN section."
+    },
+    {
+      "id": "SC-005",
+      "section": "1.2, 2.5 step 7",
+      "severity": "medium",
+      "needs_human": false,
+      "evidence": "'Script `crosscheck`' is listed in plan stage (1.2) and mentioned in CI (2.5 step 7) but the spec provides no algorithm or validation rules. INT-0001 says it should cross-check 'SR/mitigation → task + named test' (every SR in traceability has a task and test in plan), but SPEC-0001 never states this explicitly or names the output format.",
+      "recommendation": "Add to section 2.5 step 7 a description: 'crosscheck.py reads TRACE-<NNNN>.md, extracts all SR-xxx references, and verifies each has a corresponding task in PLAN-<NNNN>.md and a named test listed with that task; fails if any SR is missing a task or test.'"
+    }
+  ]
+}
