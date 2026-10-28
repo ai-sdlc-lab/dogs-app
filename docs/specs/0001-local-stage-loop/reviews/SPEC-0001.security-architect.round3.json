@@ -1,0 +1,35 @@
+{
+  "reviewer": "security-architect",
+  "round2_resolved": [
+    "ARC-018",
+    "ARC-019",
+    "ARC-020",
+    "ARC-021",
+    "ARC-022",
+    "ARC-023",
+    "ARC-024",
+    "ARC-025",
+    "ARC-026",
+    "ARC-027",
+    "ARC-028",
+    "ARC-029",
+    "ARC-030"
+  ],
+  "artifact": "(written to THREAT-0001.md)",
+  "findings": [
+    {
+      "id": "ARC-031",
+      "reviewer": "security-architect",
+      "severity": "low",
+      "sr_ref": "SR-031",
+      "file": "docs/specs/0001-local-stage-loop/SPEC-0001.md",
+      "line": 339,
+      "evidence": "M-29: \"the owner's memory entry on merge rules says Claude never merges into `main` unless asked (updated 2026-10-28)\". The MEMORY.md index loaded into this session still lists \"temporary-merge-apply-autonomy ... Claude may merge PRs + make apply\", and the entry also grants apply, which M-29 does not mention.",
+      "recommendation": "Extend the M-29 manual check: before the final PR, confirm the memory index no longer lists merge or apply autonomy (apply as well as merge); no new M-ID needed since SKILL.md and the apply deny rules already bound the effect.",
+      "blocking": false
+    }
+  ],
+  "produced": {
+    "docs/specs/0001-local-stage-loop/THREAT-0001.md": "35ccec45fd99c7567449e0c7179c2c53dcfe0b0a410e92dd3708ea03fbb60c57"
+  }
+}

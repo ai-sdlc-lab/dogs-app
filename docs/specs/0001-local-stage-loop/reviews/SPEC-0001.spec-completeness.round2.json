@@ -1,0 +1,46 @@
+{
+  "reviewer": "spec-completeness",
+  "round": 2,
+  "verdict": "block",
+  "round1_resolved": [
+    "SC-001",
+    "SC-002",
+    "SC-003",
+    "SC-004",
+    "SC-005"
+  ],
+  "findings": [
+    {
+      "id": "SC-006",
+      "section": "2.2, 1.3, 5",
+      "severity": "medium",
+      "needs_human": false,
+      "evidence": "Sections 1.2/5 state reviewers return TRACE/THREAT artifact content via 'validated reviewer JSON' (line 167), and section 5 says main session writes files from this JSON via write_artifact.py. However, the schema in section 2.2 (lines 74-83, additionalProperties: false) does not list any field for artifact content. Unclear whether content is stored in the JSON schema, returned via StructuredOutput, or another mechanism.",
+      "recommendation": "Clarify the mechanism: update section 2.2 schema documentation to show which field carries artifact content, or add note to section 1.3 explaining how artifact content flows from reviewer agents to write_artifact.py."
+    },
+    {
+      "id": "SC-007",
+      "section": "11",
+      "severity": "medium",
+      "needs_human": false,
+      "evidence": "Section 11 'Threat mitigations' cites M-01 through M-17 from THREAT-0001. But per the process (section 1.2), THREAT-0001 is produced BY the security-architect reviewer during the spec stage, after the author completes SPEC-0001. The spec does not explain the authoring workflow for section 11: whether it is drafted as a placeholder by the author then updated after threat model review, or whether the content is supplied/finalized by the security-architect.",
+      "recommendation": "Clarify the authoring workflow for section 11: must threat mitigations be authored by the author first and then aligned with security-architect's THREAT-0001, or is section 11 produced after threat model review is complete?"
+    },
+    {
+      "id": "SC-008",
+      "section": "1.1, 11",
+      "severity": "high",
+      "needs_human": false,
+      "evidence": "Mitigation M-04 (line 276) requires '/stage refuses to start while aws sts get-caller-identity succeeds' and 'tells the owner to run aws logout'. This is a concrete, normative requirement (section 11). However, section 1.1, which documents /stage intent command behavior, does not mention any AWS logout pre-flight check. The spec is not self-contained on this requirement; deny rules for Bash commands are documented (section 5) but the /stage command-level check is not.",
+      "recommendation": "Add to section 1.1 a pre-flight checks subsection documenting the AWS logout requirement (from M-04). Alternatively, if /stage AWS logout is not being implemented in this change, move M-04 from normative mitigations to future/supporting section."
+    },
+    {
+      "id": "SC-009",
+      "section": "10, 11",
+      "severity": "high",
+      "needs_human": false,
+      "evidence": "Section 11 states 'Normative; each has the named tests listed in THREAT-0001 (added to test plan)'. However, section 10 lacks explicit test names for five normative mitigations: M-04 (no test_stage_refuses_aws_logged_in), M-09 '.appsec-baseline tree check' (no test name), M-10 'read denies sensitive paths' (no test_read_denies_credentials), M-15 '/stage argument validation' (no test name), M-17 'schema enum match' (line 289 says '(test)' but provides no test name). Violations against these mitigations cannot be verified without test coverage.",
+      "recommendation": "For each normative mitigation M-01 through M-17, add an explicit test name to section 10 mapping to the mitigation (e.g., 'test_M04_stage_refuses_aws_logged_in'). Alternatively, for mitigations lacking implemented tests in this change, move them to a 'Future mitigations' section separate from normative claims."
+    }
+  ]
+}

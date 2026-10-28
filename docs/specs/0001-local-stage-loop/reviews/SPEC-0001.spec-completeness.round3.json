@@ -1,0 +1,21 @@
+{
+  "reviewer": "spec-completeness",
+  "round": 3,
+  "verdict": "block",
+  "round2_resolved": [
+    "SC-006",
+    "SC-007",
+    "SC-008",
+    "SC-009"
+  ],
+  "findings": [
+    {
+      "id": "SC-010",
+      "section": "10, 11",
+      "severity": "high",
+      "needs_human": false,
+      "evidence": "Section 11 line 307 states normatively: 'Each mitigation's tests are listed in §10.' Section 11 defines mitigations M-01 through M-30 (line 309–341), with M-11 defined at line 321 as 'Author write scope as in 5.' However, section 10 test-to-mitigation mappings (lines 270–298) skip M-11, jumping from M-10 (line 279) directly to M-12 (line 280). No test name is assigned to M-11, violating the normative claim.",
+      "recommendation": "Either (1) add a named test for M-11 to section 10 (e.g., 'test_author_write_scope_enforced') that validates author scope constraints from section 5, or (2) remove M-11 from the normative mitigations table and rely solely on section 5's authorization matrix for author scope definition."
+    }
+  ]
+}

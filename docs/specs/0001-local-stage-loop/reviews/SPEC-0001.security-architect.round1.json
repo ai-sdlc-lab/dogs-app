@@ -1,0 +1,193 @@
+{
+  "reviewer": "security-architect",
+  "artifact": "# THREAT-0001: threat model\n\n<!-- Written by the security-architect reviewer. Do not edit by hand. -->\n\nStage reviewed: spec (`SPEC-0001.md`, with `INT-0001.md` and `reviews/INT-0001-status.md`). Existing system read from `dogs-app/.claude/settings.json`, `.claude/hooks/protect-paths.py`, `.github/CODEOWNERS`, `.github/workflows/{security,deploy,ci}.yml`, `lab-admin/github.tf`, `lab-admin/aws.tf` and `appsec-baseline/{agents,gate,schemas,templates,exceptions}`. Requirements: `security-requirements.md` with SR-031 as amended in SPEC section 9.\n\nOwner decisions taken as given and not re-raised: the session works with the owner's GitHub identity and holds the owner's bypass (SPEC section 5, issue #12 parked); agents merge stage PRs into feature branches on their own; only the merge to `main` needs the owner; deploy gap until change 0002 (EXC-001); open findings may be public; owner-account MFA out of scope; reviews are self-attested (ATK-18).\n\n## Scope and change summary\nLLM review moves from GitHub Actions to the owner's local Claude Code session. The spec turns the intent into concrete interfaces. What it adds or changes:\n\n- **Orchestrator:** main session (Opus 5.5) with shell and network, the owner's `gh`/git credentials and bypass. It runs `/stage`, commits, pushes `feature/*` and `stage/*`, merges stage PRs, opens the final PR.\n- **Subagents:** author (Read, Grep, Glob, Write, Edit) and seven read-only reviewers. Tool allow lists, pinned models, `maxTurns`. A PreToolUse hook tells subagents from the main session by `agent_id`.\n- **Scripts and data in appsec-baseline:** `validate`, `gate`, `hash`, `structure`, `crosscheck`, `named_tests`, `plan_drift`, `classify`, `redact`; `review-report.schema.json`; `exceptions/sr-exceptions.yml`; reusable `verify.yml`. Local scripts run from `.appsec-baseline/` (git-ignored checkout at the lock SHA).\n- **dogs-app:** `stages.yml`, `appsec-baseline.lock`, `.claude/skills/stage`, agents, templates, reports under `docs/specs/<NNNN>-<slug>/reviews/`. CI jobs `verify` and `scanners`; reviewer jobs, `security-tester` and `author.yml` removed.\n- **lab-admin:** required checks swapped to `ci`, `security/verify / verify`, `security-gate`; `ANTHROPIC_*` variables, labels and allowlist entries removed.\n- **Unchanged:** app code, API, web, AWS resources, the environment-scoped AWS OIDC trust (deployment policy limits it to `main`).\n\n## Assets\n- A1: `main` and the deploy path (`deploy.yml` -> environment `dev` -> AWS role).\n- A2: Local guardrails: `.claude/settings.json`, hooks, agent definitions, skill, `stages.yml`, `appsec-baseline.lock`, `.appsec-baseline/`.\n- A3: Integrity of review evidence: reports, `TRACE-`/`THREAT-` files, `exceptions/sr-exceptions.yml`.\n- A4: The verifier and its scripts (appsec-baseline at the lock SHA, `verify.yml@main`).\n- A5: Owner credentials on the laptop: `gh` token with bypass, git credentials, `~/.aws` admin session, Claude login.\n- A6: CI workflows and required checks (`.github/`, lab-admin rulesets).\n- A7: Confidentiality of everything agents read, because reports are committed to a public repo.\n\n## Trust boundaries and data flows\n| # | From -> To | Data | Crosses boundary |\n|---|---|---|---|\n| 1 | Repo content (artifacts, code, comments, docs) -> author and reviewer subagents | untrusted text | yes: data -> LLM |\n| 2 | Subagent output -> `validate`/`gate` -> main session | findings JSON, artifact markdown | yes: LLM output -> privileged orchestrator |\n| 3 | Main session -> local files (`.claude/`, `.github/`, `stages.yml`, lock, `.appsec-baseline/`) | edits, Bash writes | yes: agent -> guardrail config effective at once |\n| 4 | Main session -> GitHub (push, `gh pr create/merge`, `gh api`) as owner | branches, PRs, merges | yes: laptop -> GitHub (owner identity, accepted) |\n| 5 | Main session -> AWS / Terraform via local admin session | `make apply`, `terraform`, `aws` | yes: laptop -> AWS admin |\n| 6 | Stage PR (head) -> `verify` job (base `stages.yml` and lock) | reports, artifacts, code diff | yes: PR content -> CI |\n| 7 | appsec-baseline `verify.yml@main` + scripts at lock SHA -> `verify` job | code that runs in CI | yes: other repo |\n| 8 | appsec-baseline `exceptions/` at lock SHA -> gate (local and CI) | accepted-risk records | yes: other repo |\n| 9 | `ci` test run -> JUnit -> `named_tests.py` | test results from PR-controlled code | yes: untrusted code output -> verifier |\n| 10 | `verify` job -> PR comment, job log, job summary | strings taken from reports | yes: untrusted text -> GitHub UI |\n| 11 | Reports and artifacts -> public git history | findings, quotes | yes: laptop -> public |\n| 12 | lab-admin Terraform -> GitHub rulesets (required checks) | config | yes: IaC -> GitHub org |\n| 13 | `main` -> `deploy.yml` -> AWS OIDC | build, apply | existing; control set reduced (tester removed, EXC-001) |\n\n## STRIDE per element\n| Element | S | T | R | I | D | E | Notes |\n|---|---|---|---|---|---|---|---|\n| Main session | n/a | **threat**: Bash can write `.claude/` and `.appsec-baseline/` (AB-01); can alter `THREAT-`/`TRACE-` text when copying (AB-06) | accepted: acts as owner | accepted for GitHub; **threat** for AWS (AB-03) | n/a | **threat**: AWS apply via variants the deny pattern misses (AB-03); injected output relayed to it (AB-12) | most privileged element |\n| Author subagent | n/a | **threat**: write scope is the whole change folder, incl. `reviews/` (AB-07); at code stage any code path | n/a | **threat**: Read reaches credential files, output goes public (AB-08) | n/a | mitigated: no shell, hook, allow list | prompt injection via flow 1 |\n| Reviewer subagents | n/a | mitigated: read-only | n/a | **threat**: same Read scope (AB-08) | n/a | mitigated: allow list | `sr_ref` and `status` are chosen by the LLM (AB-04, AB-05) |\n| Hook + settings | n/a | **threat**: hook crash exits 1 = allow (AB-01); static deny replaced by hook-only `ask` | n/a | n/a | n/a | **threat**: weakens today's deny list for the main session | single control for subagent boundary |\n| Gate and `validate` | mitigated: schema, allow list | **threat**: escalation keyed on reviewer-chosen `sr_ref` (AB-05); local scripts unverified vs lock (AB-09) | n/a | n/a | mitigated: 3 rounds, maxTurns | n/a | |\n| Review reports | **threat**: reviewer name self-declared (accepted) | **threat**: `status: carried/fixed` passes (AB-04); changed files not required in `files` (AB-02) | accepted ATK-18 | accepted (public) | n/a | n/a | |\n| CI verifier (`verify`) | mitigated: `pull_request`, lock reachable from `main` | **threat**: no report required when no stage folder touched (AB-02); `named_tests` needs JUnit from PR code (AB-10) | n/a | n/a | mitigated: 15 min | **threat**: holds `pull-requests: write`; unpinned `verify.yml@main` | scripts run from lock SHA |\n| PR comment, log, summary | n/a | **threat**: untrusted strings rendered as markdown or workflow commands (AB-11) | n/a | n/a | n/a | n/a | |\n| `sr-exceptions.yml` | n/a | **threat**: weak validation of expiry, glob breadth (AB-13) | accepted | n/a | n/a | n/a | merge is owner-only by convention (accepted residual) |\n| lab-admin required checks | n/a | threat: swap ordering | n/a | n/a | n/a | n/a | one apply before the final merge (SPEC 2.7) |\n| `deploy.yml` | n/a | **threat**: `needs` rewired wrongly drops DAST (AB-14) | n/a | n/a | n/a | n/a | ZAP gap itself accepted (EXC-001) |\n| `/stage` argument handling | n/a | **threat**: slug and NNNN reach branch names and shell (AB-15) | n/a | n/a | n/a | n/a | |\n\n## Abuse cases\n| ID | Attacker goal and steps | Impact |\n|---|---|---|\n| AB-01 | Prompt injection in an artifact reaches the main session. It edits `.claude/settings.json` with `sed -i` or a heredoc through Bash (the hook matches only Edit/Write/NotebookEdit) and removes the `make apply`/merge denies. Or it triggers a hook crash (exit 1 is non-blocking, so the edit proceeds). | Guardrails off on the laptop before any PR review; leads to AB-03 |\n| AB-02 | A code PR (or a PR into a feature branch) changes `api/`, `infra/` or `.github/` without touching a `docs/specs/<NNNN>-*` folder, or ships a code-stage report whose `files` omits some changed files, or omits the workflow-iac report. The verifier only checks reports for touched stage folders and listed hashes. | Code/IaC/CI change passes `security/verify` unreviewed |\n| AB-03 | Injected main session runs `make -C ../lab-admin apply`, `terraform -chdir=... apply`, `cd x && terraform apply` or a direct `aws` call while the owner's AWS admin session is live. The `make apply` deny is a command-text pattern. | Arbitrary AWS/IAM change; not covered by the accepted GitHub residual |\n| AB-04 | A finding with `sr_ref: SR-0xx` is written with `status: carried` or `fixed`. The report schema rejects only `open`/`needs-human`, so the report is valid and CI passes without an exception. | SR decision bypassed (criterion 4 defeated in CI) |\n| AB-05 | A reviewer steered by an artifact labels a real SR violation `sr_ref: NEW`, non-blocking or low. The gate escalates only SR-ref findings and prompt-injection, so it is never shown to the owner. | Silent loss of an owner decision |\n| AB-06 | The main session copies the architect's `artifact` into `THREAT-0001.md` by hand, dropping or softening threats. Nothing binds the file to reviewer output. | Doctored threat model/traceability in the record |\n| AB-07 | Injected author writes `reviews/SPEC-0001.<reviewer>.json` (inside the change folder) or rewrites an earlier stage artifact; at the code stage edits `Makefile` or `infra/` because any code path is allowed. | Forged evidence, unplanned change (plan drift is only caught later in CI) |\n| AB-08 | Injection makes a subagent Read `~/.config/gh/hosts.yml`, `~/.claude.json`, `~/.netrc`, `~/.git-credentials` and quote it as evidence; the report is committed to the public repo. `redact.py` knows token formats but not PEM keys or netrc passwords. | Credential disclosure |\n| AB-09 | The local `.appsec-baseline/` checkout is stale, dirty or edited (it is git-ignored and not protected). The session runs altered `gate.py`/`validate.py` and writes `appsec_sha` equal to the lock. Plugin-installed agents may come from marketplace `main`, not the lock SHA. | Reports claim a review under rules that were not used |\n| AB-10 | PR-controlled tests emit a JUnit file that marks the named tests passed. Fetching it across workflows needs extra token scope or a `workflow_run`. | Named-test proof is forged, or SR-030 is loosened to make it work |\n| AB-11 | A finding `evidence` contains markdown links, images, `@mentions` or `::stop-commands::` text. It is posted in the PR comment, summary and log. A user posts a comment with the verifier marker to hijack deletion. | Phishing/notification abuse, log manipulation |\n| AB-12 | Reviewer free-text (`evidence`, `recommendation`) carries an instruction aimed at the main session, which then acts on it with shell access. | Remote steering of the privileged session |\n| AB-13 | An exception is merged with `paths: [\"**\"]`, a missing or far-future `expires`, or a malformed entry that the gate parses leniently. | Permanent silent SR acceptance |\n| AB-14 | `deploy` is rewired without `needs: dast`. ZAP no longer runs before deploy. | Deploy with no DAST at all (beyond EXC-001) |\n| AB-15 | `/stage intent <idea pasted from an issue>` yields a slug such as `x;curl ...`, used in a branch name and Bash commands. | Command injection into the session shell |\n\n## Required mitigations\n| ID | Mitigation | SR / named test | Plan step |\n|---|---|---|---|\n| M-01 | The verifier computes the changed files itself (`git diff -z --raw -M base...head`). If `classify` says code, it requires a code-stage report even when no stage folder is touched. The `security-code-reviewer` report `files` must list every changed non-docs file; the `workflow-iac-reviewer` report is required (decided by the verifier from paths) and must list every changed `.github/` and `infra/` file. | SR-031, SR-021 / `test_verify_fails_code_pr_without_stage_folder`, `test_verify_fails_on_changed_file_missing_from_report`, `test_verify_requires_workflow_iac_report_when_github_changed` | PLAN-0001 (to assign) |\n| M-02 | `status` is set by the gate, not the reviewer. The verifier rejects any finding with an `SR-xxx` ref whose status is not `accepted-risk` with a matching unexpired exception; `fixed` is not allowed in final reports; `carried` only for non-SR findings. | SR-031 / `test_verify_rejects_sr_finding_with_status_carried_or_fixed`, `test_gate_overrides_reviewer_status` | PLAN-0001 (to assign) |\n| M-03 | Guardrail enforcement that survives Bash and hook failure: (a) static `permissions.ask` rules for `.claude/**`, `CLAUDE.md`, `REVIEW.md`, `stages.yml`, `appsec-baseline.lock`, `.appsec-baseline/**` (main session asks; do not rely on hook-only `ask`); (b) the hook fails closed: any exception or malformed input exits 2; (c) a Bash matcher in the hook asks when a command names a protected path, and the sandbox `denyWrite` list covers the same paths where available; (d) the final PR description lists every changed path under `.claude/`, `.github/`, `stages.yml`, lock. | SR-031 / `test_hook_fails_closed_on_malformed_input`, `test_hook_asks_for_bash_write_to_claude_dir`, `test_settings_ask_rules_cover_protected_paths` | PLAN-0001 (to assign) |\n| M-04 | Cover AWS apply variants: ask/deny for `terraform`, `make -C`, `make` with `apply`/`destroy`/`seed`, mutating `aws` calls, compound commands (`cd x && ...`); state in SPEC section 5 that the AWS admin session must be logged out (`aws logout`) while `/stage` runs, or add AWS to the owner-accepted residual. | SR-031, SR-028 / `test_hook_asks_for_terraform_and_make_apply_variants` | PLAN-0001 (to assign) |\n| M-05 | `TRACE-`/`THREAT-` files are written by a script (`write_artifact.py`) from the validated JSON `artifact` field, not by LLM copying. The reviewer report lists the produced file hash and the verifier checks it. | SR-021, SR-031 / `test_verify_fails_on_edited_threat_file` | PLAN-0001 (to assign) |\n| M-06 | `crosscheck.py` also maps every `M-xx` row of `THREAT-` to a PLAN task and an existing named test (not only SRs from `TRACE-`). | SR-031 / `test_crosscheck_fails_on_threat_mitigation_without_task_and_test` | PLAN-0001 (to assign) |\n| M-07 | `named_tests` design: tests run in a separate job with `contents: read` only and upload JUnit in the same workflow run; `verify` has `needs:` on it and reads the artifact (no `workflow_run`, no `actions: read`, no PR code in the job holding `pull-requests: write`). Missing JUnit or a failed named test fails. | SR-030 / `test_named_tests_fails_when_junit_missing`, `test_named_tests_fails_on_failed_test`, `test_verify_job_runs_no_pr_code` | PLAN-0001 (to assign) |\n| M-08 | Gate escalates on any of: `sr_ref` is an SR; `blocking: true`; severity high or critical; `needs_human`; `category: prompt-injection`; finding text containing `SR-` and three digits while `sr_ref` is `NEW`. | SR-031 / `test_gate_escalates_new_blocking_finding`, `test_gate_escalates_sr_mentioned_in_text_with_new_ref` | PLAN-0001 (to assign) |\n| M-09 | Before each stage and before `gate`, a script checks that `.appsec-baseline/` HEAD equals the lock and the tree is clean; agents and scripts are loaded only from that checkout (not marketplace `main`). | SR-027, SR-031 / `test_lock_check_fails_on_dirty_or_mismatched_checkout` | PLAN-0001 (to assign) |\n| M-10 | Read denies for `~/.config/gh/**`, `~/.claude.json`, `~/.claude/.credentials*`, `~/.netrc`, `~/.git-credentials`, `~/.docker/**`, `~/.kube/**`, `~/.config/git/**`, `.terraform/**`; `redact.py` also covers PEM private-key blocks and netrc passwords; any redaction escalates. | SR-026, SR-023 / `test_settings_deny_reads_credential_paths`, `test_redact_private_key_block`, `test_gate_escalates_on_redaction` | PLAN-0001 (to assign) |\n| M-11 | Author write scope: only the current stage artifact (`INT-`/`SPEC-`/`PLAN-NNNN.md`); never `reviews/` or other stages' files. At the code stage only files listed in the repo's `PLAN-` section, never `Makefile`, `infra/`, `stages.yml` unless listed. | SR-031 / `test_hook_blocks_author_write_to_reviews_dir`, `test_hook_blocks_author_code_file_not_in_plan` | PLAN-0001 (to assign) |\n| M-12 | Exceptions are schema-checked in appsec-baseline CI and by the gate: `expires` required and at most `approved` + 180 days, unique `id`, non-empty `sr`, no catch-all glob (`**`, `*`), malformed or expired entries treated as absent. | SR-031 / `test_exceptions_reject_over_180_days`, `test_exceptions_reject_missing_expiry`, `test_exceptions_reject_catch_all_glob`, `test_gate_ignores_malformed_exception` | PLAN-0001 (to assign) |\n| M-13 | The caller pins `verify.yml` by commit SHA (equal to the lock) instead of `@main`; verifier Python dependencies installed with `--require-hashes`. | SR-027, SR-030 / `test_security_yml_verify_uses_sha_pin`, `test_verifier_requirements_have_hashes` | PLAN-0001 (to assign) |\n| M-14 | Strings from reports are stripped of markdown, HTML, `@mentions` and workflow-command prefixes and cut to 200 characters before comment, summary or log. The verifier only edits comments with its marker authored by `github-actions[bot]`; a read-only fork token never changes the verdict. | SR-030 / `test_comment_escapes_markup_and_mentions`, `test_logs_neutralise_workflow_commands`, `test_comment_cleanup_ignores_foreign_comments` | PLAN-0001 (to assign) |\n| M-15 | A script validates `/stage` arguments (slug `^[a-z0-9]([a-z0-9-]{0,38}[a-z0-9])?$`, NNNN `^[0-9]{4}$`) and builds branch names; `classify.py` reads NUL-separated output and treats submodules and type changes to symlink as code. | SR-001, SR-002 / `test_stage_rejects_unsafe_slug`, `test_classify_handles_nul_and_quoted_paths`, `test_classify_submodule_and_typechange_is_code` | PLAN-0001 (to assign) |\n| M-16 | `deploy.yml` keeps `needs: [build, dast]`; EXC-001 stays scoped to `deploy.yml` with its expiry; the lab-admin swap is checked on the final PR (new checks green) before the old ones are removed. | SR-030 / `test_deploy_needs_dast`, `test_exc001_scoped_to_deploy_yml_and_expires`; manual: new required check reports on the final PR before the swap apply | PLAN-0001 (to assign) |\n| M-17 | `SKILL.md` states the untrusted-input rule for the main session: it acts only on validated structured fields, never on free text from subagents; `review-report.schema.json` reviewer enum is generated from `stages.yml`. | SR-031 / `test_skill_states_untrusted_input_rule`, `test_review_schema_reviewer_enum_matches_stages_yml` | PLAN-0001 (to assign) |\n\n## Impact on the existing system\n- **Weakens an existing control:** today the `Edit(/.claude/**)`, `Edit(/.github/**)` denies and `protect-paths.py` stop every agent. SPEC section 5 replaces this for the main session with a hook-only `ask` that covers Edit/Write only, fails open on a crash and can be bypassed through Bash (M-03). `.github/` becomes writable by the main session; CODEOWNERS review at the final PR is post-hoc, so the final PR must show the owner those paths (M-03d).\n- **Verifier is the new core control:** it replaces PR-time LLM jobs. As specified it proves hashes of listed files only; it needs the completeness rules of M-01, M-02, M-05 to deliver criterion 3 and 4.\n- **Identity:** GitHub actions as owner is accepted. AWS admin reach through the same shell is not covered by that decision (M-04).\n- **Reduced attack surface:** `author.yml`, Anthropic federation rules, service accounts, the Claude GitHub App, `id-token: write` in `security.yml` and the `ANTHROPIC_*` variables all go. The AWS role stays bound to environment `dev` limited to `main`, so feature-branch workflows cannot assume it.\n- **Detection reduced:** no deploy-time tester; ZAP alerts do not stop deploys until 0002 (EXC-001, accepted). Review independence rests on the owner's merge (accepted, ATK-18).\n- **Public exposure:** reports and open findings are public (accepted); credential leakage is the remaining risk (M-10).\n- **New cost exposure:** none in CI (no API calls); `verify` runs at most 15 minutes per PR.\n\n## Residual risk\n- Accepted by the owner: session uses the owner's GitHub login with bypass; command-pattern rules do not stop `gh api` merge or `git push origin HEAD:main`; real control is trust plus issue #12.\n- Accepted: reviews are self-attested; CI proves report-to-file binding, not an honest review.\n- Accepted: no stop on ZAP alerts until 0002 (EXC-001, expires 2026-12-31).\n- Accepted: open findings visible in a public repo.\n- Remains after M-01..M-17: a steered session can still use the owner's GitHub identity; the merge to `main` and the final-PR diff review by the owner are the last gate. Sandbox `denyWrite` (M-03c) is best effort until verified on the owner's setup.\n",
+  "findings": [
+    {
+      "id": "ARC-001",
+      "reviewer": "security-architect",
+      "severity": "high",
+      "sr_ref": "SR-031",
+      "file": "docs/specs/0001-local-stage-loop/SPEC-0001.md",
+      "line": 123,
+      "evidence": "2.5 step 5: 'For each stage folder touched: every reviewer in `stages.yml` has a report'; every hash in `files` equals the PR head's file. Nothing requires a code-stage report when no stage folder is touched, that changed code files appear in `files`, or how the conditional workflow-iac report is decided.",
+      "recommendation": "Verifier computes changed files and the required reviewer set itself; code PRs need a code-stage report listing every changed non-docs file (M-01).",
+      "blocking": true
+    },
+    {
+      "id": "ARC-002",
+      "reviewer": "security-architect",
+      "severity": "high",
+      "sr_ref": "SR-031",
+      "file": "docs/specs/0001-local-stage-loop/SPEC-0001.md",
+      "line": 83,
+      "evidence": "2.2: 'A report with a finding whose status is `open` or `needs-human` is invalid.' Statuses `fixed` and `carried` are allowed and the reviewer sets them, so an SR finding marked `carried` passes the verifier with no exception.",
+      "recommendation": "Gate assigns status; verifier rejects any SR-ref finding unless accepted-risk with a matching unexpired exception (M-02).",
+      "blocking": true
+    },
+    {
+      "id": "ARC-003",
+      "reviewer": "security-architect",
+      "severity": "high",
+      "sr_ref": "SR-031",
+      "file": "docs/specs/0001-local-stage-loop/SPEC-0001.md",
+      "line": 153,
+      "evidence": "Edit of `.claude/`, `CLAUDE.md`, `stages.yml`, lock: 'ask: owner approves each edit (hook `permissionDecision: ask`)'. The existing hook matches only `Edit|Write|NotebookEdit` and any crash exits 1, which does not block; Bash writes and the removed static deny bypass it.",
+      "recommendation": "Add static permissions.ask rules, a fail-closed hook (exit 2 on error), a Bash matcher or sandbox denyWrite, and list protected-path changes in the final PR (M-03).",
+      "blocking": true
+    },
+    {
+      "id": "ARC-004",
+      "reviewer": "security-architect",
+      "severity": "medium",
+      "sr_ref": "SR-031",
+      "file": "docs/specs/0001-local-stage-loop/SPEC-0001.md",
+      "line": 156,
+      "evidence": "Authorisation matrix: '`make apply`, `terraform apply` ... no (deny)'. The residual-risk paragraph names only `gh api` and `git push`; `make -C ../lab-admin apply`, `terraform -chdir=... apply` or `aws` calls are not covered and the AWS admin session is a different identity.",
+      "recommendation": "Cover apply variants and mutating aws calls in ask/deny rules, and require AWS logout during /stage or record AWS in the accepted residual (M-04).",
+      "blocking": false
+    },
+    {
+      "id": "ARC-005",
+      "reviewer": "security-architect",
+      "severity": "medium",
+      "sr_ref": "SR-031",
+      "file": "docs/specs/0001-local-stage-loop/SPEC-0001.md",
+      "line": 151,
+      "evidence": "Matrix row: 'Write `TRACE-/THREAT-` files | yes (copies reviewer output)'. Report `files` covers files 'the reviewer reviewed', so the produced THREAT/TRACE file is not hash-bound to the reviewer output.",
+      "recommendation": "Write these files with a script from the validated JSON artifact and record their hash in the report; verifier checks it (M-05).",
+      "blocking": false
+    },
+    {
+      "id": "ARC-006",
+      "reviewer": "security-architect",
+      "severity": "medium",
+      "sr_ref": "SR-031",
+      "file": "docs/specs/0001-local-stage-loop/SPEC-0001.md",
+      "line": 215,
+      "evidence": "Only test for the plan check is `test_crosscheck_fails_on_sr_without_task_and_test`. Mitigations in THREAT-0001 (M-xx) are not covered by any deterministic cross-check, only by the architect LLM on the plan PR.",
+      "recommendation": "Extend crosscheck.py to map every THREAT mitigation ID to a PLAN task and an existing named test (M-06).",
+      "blocking": false
+    },
+    {
+      "id": "ARC-007",
+      "reviewer": "security-architect",
+      "severity": "medium",
+      "sr_ref": "SR-030",
+      "file": "docs/specs/0001-local-stage-loop/SPEC-0001.md",
+      "line": 125,
+      "evidence": "`named_tests.py` needs tests that 'passed in the `ci` run's JUnit report', but the verify job has only 'contents: read, pull-requests: write'; ci.yml is a separate workflow, so the artifact fetch needs more scope, a workflow_run or polling, and the JUnit comes from PR-controlled code.",
+      "recommendation": "Run tests in a separate read-only job in the same workflow, upload JUnit, and have verify need it (M-07).",
+      "blocking": false
+    },
+    {
+      "id": "ARC-008",
+      "reviewer": "security-architect",
+      "severity": "medium",
+      "sr_ref": "SR-031",
+      "file": "docs/specs/0001-local-stage-loop/SPEC-0001.md",
+      "line": 28,
+      "evidence": "1.3: 'escalate (any SR finding without a valid exception, or a prompt-injection finding)'. Escalation depends on the reviewer-chosen `sr_ref`; a violation labelled `NEW` with low severity and blocking false is never shown to the owner.",
+      "recommendation": "Escalate also on blocking, high/critical, needs_human, and SR numbers in text when sr_ref is NEW (M-08).",
+      "blocking": false
+    },
+    {
+      "id": "ARC-009",
+      "reviewer": "security-architect",
+      "severity": "medium",
+      "sr_ref": "SR-027",
+      "file": "docs/specs/0001-local-stage-loop/SPEC-0001.md",
+      "line": 68,
+      "evidence": "'The session runs the scripts from a checkout of appsec-baseline at the lock SHA (`.appsec-baseline/`, git-ignored)'. No check that HEAD equals the lock or that the tree is clean, the directory is not protected, and the loading path of plugin agents (marketplace) is not stated.",
+      "recommendation": "Verify checkout HEAD equals the lock and is clean before each stage and gate; load agents only from it; protect the path (M-09).",
+      "blocking": false
+    },
+    {
+      "id": "ARC-010",
+      "reviewer": "security-architect",
+      "severity": "medium",
+      "sr_ref": "SR-026",
+      "file": "docs/specs/0001-local-stage-loop/SPEC-0001.md",
+      "line": 171,
+      "evidence": "'`redact.py` runs on every reviewer output before it's written'. Subagents keep Read, and the Read deny list covers only `./.env*`, `~/.aws/**`, `~/.ssh/**`; redact.py patterns miss PEM keys and netrc passwords. Reports go to a public repo.",
+      "recommendation": "Add Read denies for gh, claude, netrc, git-credentials, docker, kube, terraform paths; extend redact patterns; test that redaction escalates (M-10).",
+      "blocking": false
+    },
+    {
+      "id": "ARC-011",
+      "reviewer": "security-architect",
+      "severity": "medium",
+      "sr_ref": "SR-031",
+      "file": "docs/specs/0001-local-stage-loop/SPEC-0001.md",
+      "line": 150,
+      "evidence": "Author may write 'only inside `docs/specs/<NNNN>-*/` of the current stage branch, or code paths at the code stage'. That includes `reviews/` and earlier stage artifacts; INT-0001 limits the code stage to 'the files the plan lists'.",
+      "recommendation": "Restrict the author to the current stage artifact, and at code stage to files in the repo's PLAN section (M-11).",
+      "blocking": false
+    },
+    {
+      "id": "ARC-012",
+      "reviewer": "security-architect",
+      "severity": "low",
+      "sr_ref": "NEW",
+      "file": "docs/specs/0001-local-stage-loop/SPEC-0001.md",
+      "line": 113,
+      "evidence": "Exception rules: 'expires: 2026-12-31 # required; max 180 days after approved'. Section 10 tests only matching/expired exceptions; no test for missing expiry, over-180 days, catch-all path globs or malformed entries.",
+      "recommendation": "Validate sr-exceptions.yml in appsec-baseline CI and the gate; treat malformed entries as absent (M-12).",
+      "blocking": false
+    },
+    {
+      "id": "ARC-013",
+      "reviewer": "security-architect",
+      "severity": "low",
+      "sr_ref": "SR-027",
+      "file": "docs/specs/0001-local-stage-loop/SPEC-0001.md",
+      "line": 117,
+      "evidence": "'called from dogs-app `security.yml` job `verify` as `uses: .../verify.yml@main`' while scripts are pinned by the lock SHA; verifier Python dependencies have no stated hash pinning (security.yml today uses `pip install zizmor==1.31.1 jsonschema==4.26.0`).",
+      "recommendation": "Pin verify.yml by SHA equal to the lock and install verifier dependencies with --require-hashes (M-13).",
+      "blocking": false
+    },
+    {
+      "id": "ARC-014",
+      "reviewer": "security-architect",
+      "severity": "low",
+      "sr_ref": "NEW",
+      "file": "docs/specs/0001-local-stage-loop/SPEC-0001.md",
+      "line": 44,
+      "evidence": "1.7: the verifier comment lists 'ID, SR, file:line, one-line evidence' and deletes it when clean. No rule for neutralising markdown, mentions or workflow commands in untrusted strings, or for identifying only its own comment.",
+      "recommendation": "Sanitise and truncate report strings; manage only bot-authored marked comments (M-14).",
+      "blocking": false
+    },
+    {
+      "id": "ARC-015",
+      "reviewer": "security-architect",
+      "severity": "low",
+      "sr_ref": "SR-002",
+      "file": "docs/specs/0001-local-stage-loop/SPEC-0001.md",
+      "line": 9,
+      "evidence": "'/stage intent <idea>' picks NNNN and creates `feature/<NNNN>-<slug>` from the idea text; no slug validation is specified. classify.py uses `git diff --name-status -M base...head` without NUL separation (line 122).",
+      "recommendation": "Validate slug and NNNN in a script; use NUL-separated diff output; test submodule and typechange (M-15).",
+      "blocking": false
+    },
+    {
+      "id": "ARC-016",
+      "reviewer": "security-architect",
+      "severity": "low",
+      "sr_ref": "SR-030",
+      "file": "docs/specs/0001-local-stage-loop/SPEC-0001.md",
+      "line": 48,
+      "evidence": "1.8: 'deploy.yml: build -> dast (ZAP baseline) -> deploy'. No named test asserts `deploy` still needs `dast`, and no check orders the lab-admin required-check swap (2.7).",
+      "recommendation": "Add test_deploy_needs_dast and a manual ordering check on the final PR (M-16).",
+      "blocking": false
+    },
+    {
+      "id": "ARC-017",
+      "reviewer": "security-architect",
+      "severity": "low",
+      "sr_ref": "SR-031",
+      "file": "docs/specs/0001-local-stage-loop/SPEC-0001.md",
+      "line": 101,
+      "evidence": "'Every agent prompt carries the untrusted-input rule' covers subagents; the main session (shell, network, owner credentials) acts on subagent output, and findings.schema.json lists only four reviewer names while the spec adds four more.",
+      "recommendation": "State the rule in SKILL.md for the main session and generate the reviewer enum from stages.yml (M-17).",
+      "blocking": false
+    }
+  ]
+}
