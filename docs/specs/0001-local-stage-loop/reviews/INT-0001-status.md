@@ -20,4 +20,6 @@ Reviewed by hand-run subagents (the stage loop doesn't exist yet), plus the old 
 
 Branching changed 2026-10-27 (owner): one feature branch per change, stage PRs into it, one final PR to `main`. This PR replaces #8.
 
+Owner decisions 2026-10-28: agents work autonomously on the feature branch (commit, push, merge stage PRs); the only human gate is the owner's approval of the merge to `main`. ARC-002 narrows to: the session must not be able to merge into `main` (enforcement decided in the spec). Issue #9 (review comment verbosity) is fixed within this change.
+
 Verdict: allow (no open findings; two carried to the spec stage).
