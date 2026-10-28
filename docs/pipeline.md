@@ -6,10 +6,11 @@ A plain-language guide to the automation around dogs-app: what runs, when, with 
 
 Replaces the CI-based review flow described further down ("Current pipeline").
 
-- One md file per stage, one PR per stage, **the owner's merge is each stage's gate**. The next stage starts from the updated `main` when the owner says "next stage".
+- One feature branch per change (`feature/<NNNN>-<slug>`). Agents work there autonomously: each stage (one md file, or the code) is a PR from `stage/<NNNN>-<stage>` into the feature branch, merged by the session once the stage's checks pass. The owner is asked only for product facts the agents can't know and for decisions on security-requirement findings.
+- **The only human gate is the merge to `main`**, which deploys: one PR from the feature branch to `main` after implementation and validation, with required checks and the owner's approval. Agents never merge into `main`.
 - All LLM work (authoring and reviews) runs as subagents in the owner's local Claude Code session. **CI makes no LLM calls**: it runs scripts and scanners only.
 - Any finding against a security requirement (all SRs are MUST) **escalates to the owner**: fix it, or accept it as an exception (reason, expiry) in appsec-baseline. Agents never decide.
-- Findings in a PR: one PR comment, only when there are findings. Findings on `main`: one GitHub issue per finding (label `security-finding`).
+- PR comments only for findings that need the owner (issue #9); passing results stay in logs and `reviews/`. No comment = nothing to report. Findings on `main`: one GitHub issue per finding (label `security-finding`).
 - Old code is not assessed up front: stage 4 checks every touched file against all applicable SRs, so gaps surface when their code changes.
 
 | Stage | Produces | Evaluated | How |
@@ -19,8 +20,8 @@ Replaces the CI-based review flow described further down ("Current pipeline").
 | | | which SRs apply | LLM: requirements auditor |
 | | | no secrets | gitleaks |
 | 2 spec | `spec.md` | template structure; complete and testable, no open questions | script; LLM: spec-completeness |
-| | `security-traceability.md` | each applicable SR → how it is met → test | LLM: requirements auditor |
-| | `threat-model.md` | each threat → mitigation → test | LLM: security architect |
+| | `TRACE-<NNNN>.md` | each applicable SR → how it is met → test | LLM: requirements auditor |
+| | `THREAT-<NNNN>.md` | each threat → mitigation → test | LLM: security architect |
 | 3 plan | `plan.md` (files, order, tasks, named tests) | template structure | script |
 | | | fits `architecture.md` + ADRs | LLM: architecture-conformance |
 | | | every SR and mitigation has a task and a named test | script (ID cross-check) + LLM: security architect |

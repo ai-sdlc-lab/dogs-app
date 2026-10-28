@@ -23,8 +23,8 @@
       "Edit(/.github/**)",
       "Edit(/CLAUDE.md)",
       "Edit(/REVIEW.md)",
-      "Edit(/docs/specs/**/threat-model.md)",
-      "Edit(/docs/specs/**/security-traceability.md)"
+      "Edit(/docs/specs/**/THREAT-*.md)",
+      "Edit(/docs/specs/**/TRACE-*.md)"
     ]
   }
 }
