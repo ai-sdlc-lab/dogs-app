@@ -1,7 +1,8 @@
 name: security
 
-# Per-PR security checks. AI reviewers run from appsec-baseline's reusable workflow on its
-# protected main branch; the Anthropic federation rule only trusts that workflow from main.
+# Per-PR checks of the local stage loop (change 0001). No AI in CI: the reviews ran in the owner's
+# session and are committed as reports; appsec-baseline's verifier (pinned to appsec-baseline.lock)
+# checks them, scanners run on the paths they cover, security-gate aggregates.
 
 on:
   pull_request:
@@ -13,53 +14,43 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  requirements:
-    name: security/requirements
-    uses: ai-sdlc-lab/appsec-baseline/.github/workflows/security-review.yml@main
+  # Read-only test run that produces the JUnit the verifier checks named tests against (M-07).
+  tests:
+    name: tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     permissions:
       contents: read
-      id-token: write
-      pull-requests: write
-      actions: read
-    with:
-      reviewer: security-requirements-auditor
-      model: ${{ vars.REVIEWER_MODEL }}
-      anthropic_organization_id: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
-      anthropic_federation_rule_id: ${{ vars.ANTHROPIC_REVIEW_RULE_ID }}
-      anthropic_service_account_id: ${{ vars.ANTHROPIC_REVIEW_SERVICE_ACCOUNT_ID }}
-      anthropic_workspace_id: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ai-sdlc-lab/appsec-baseline
+          ref: 7b4926138f6e2165d8abe7973352f1ca540a34f2 # = appsec-baseline.lock
+          path: .appsec-baseline
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+      - run: python3 -I -m pip install --quiet --require-hashes -r tests/process/requirements.txt
+      - run: python3 -I -B -m pytest -q -p no:cacheprovider --junitxml=junit.xml tests/process
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: junit
+          path: junit.xml
+          retention-days: 7
 
-  threat-model:
-    name: security/threat-model
-    uses: ai-sdlc-lab/appsec-baseline/.github/workflows/security-review.yml@main
+  verify:
+    name: security/verify
+    needs: [tests]
+    if: always()
     permissions:
       contents: read
-      id-token: write
       pull-requests: write
-      actions: read
-    with:
-      reviewer: security-architect
-      model: ${{ vars.ARCHITECT_MODEL }}
-      anthropic_organization_id: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
-      anthropic_federation_rule_id: ${{ vars.ANTHROPIC_REVIEW_RULE_ID }}
-      anthropic_service_account_id: ${{ vars.ANTHROPIC_REVIEW_SERVICE_ACCOUNT_ID }}
-      anthropic_workspace_id: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
-
-  workflow-iac:
-    name: security/workflow-iac
-    uses: ai-sdlc-lab/appsec-baseline/.github/workflows/security-review.yml@main
-    permissions:
-      contents: read
-      id-token: write
-      pull-requests: write
-      actions: read
-    with:
-      reviewer: workflow-iac-reviewer
-      model: ${{ vars.REVIEWER_MODEL }}
-      anthropic_organization_id: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
-      anthropic_federation_rule_id: ${{ vars.ANTHROPIC_REVIEW_RULE_ID }}
-      anthropic_service_account_id: ${{ vars.ANTHROPIC_REVIEW_SERVICE_ACCOUNT_ID }}
-      anthropic_workspace_id: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
+    uses: ai-sdlc-lab/appsec-baseline/.github/workflows/verify.yml@7b4926138f6e2165d8abe7973352f1ca540a34f2 # = appsec-baseline.lock
 
   scanners:
     name: scanners
@@ -87,7 +78,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: ai-sdlc-lab/appsec-baseline
-          ref: main # AppSec's protected branch
+          ref: 7b4926138f6e2165d8abe7973352f1ca540a34f2 # = appsec-baseline.lock (test_workflow_pins_match_lock)
           path: .appsec-baseline
           persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -108,21 +99,49 @@ jobs:
           echo "${ACTIONLINT_SHA256}  actionlint.tgz" | sha256sum -c -
           tar -xzf gitleaks.tgz gitleaks && tar -xzf trivy.tgz trivy && tar -xzf actionlint.tgz actionlint
           sudo install osv-scanner gitleaks trivy actionlint /usr/local/bin/
-          pip install --quiet zizmor==1.31.1 jsonschema==4.26.0
+          pip install --quiet --require-hashes -r "$GITHUB_WORKSPACE/.appsec-baseline/tools/scanners/requirements.txt"
+
+      - name: Classify the diff (docs-only or code; fail-closed)
+        id: kind
+        run: |
+          set -euo pipefail
+          python3 -I -m pip install --quiet --require-hashes -r .appsec-baseline/gate/requirements.txt
+          python3 -I -B .appsec-baseline/stage/classify.py . "$BASE_SHA" HEAD > "$RUNNER_TEMP/diff.json"
+          kind=$(jq -r .kind "$RUNNER_TEMP/diff.json")
+          # Scanner configs the tools would load from the PR can silence them: never accepted in a PR.
+          if jq -r '.paths[]' "$RUNNER_TEMP/diff.json" | grep -E '(^|/)(\.gitleaks\.toml|\.gitleaksignore|\.semgrepignore|osv-scanner\.toml|trivy\.ya?ml|\.trivyignore(\.yaml)?)$'; then
+            echo "::error::scanner configuration files can't be added or changed in a PR (they're read from appsec-baseline)"; exit 1
+          fi
+          [[ "$kind" == docs || "$kind" == code ]] || kind=code
+          echo "kind=$kind" >> "$GITHUB_OUTPUT"
+          echo "Diff kind: $kind"
 
       - name: Run scanners
         id: scan
+        env:
+          KIND: ${{ steps.kind.outputs.kind }}
         run: |
           # GitHub runs steps with bash -e; record each scanner's exit code instead of aborting.
           set +e -uo pipefail
           mkdir -p out
-          docker run --rm -v "$PWD:/src" -w /src "$SEMGREP_IMAGE" \
-            semgrep scan --config p/default --metrics=off --exclude .appsec-baseline --sarif --output out/semgrep.sarif || true
-          trivy config --quiet --ignorefile .appsec-baseline/exceptions/trivyignore --format sarif --output out/trivy.sarif infra/ || true
-          zizmor --offline --format sarif .github/workflows/ > out/zizmor.sarif || true
           gitleaks git --log-opts="$BASE_SHA..HEAD" --redact --report-format sarif --report-path out/gitleaks.sarif; echo "gitleaks=$?" >> "$GITHUB_OUTPUT"
+          if [[ "$KIND" == docs ]]; then
+            echo "docs-only diff: gitleaks only"; echo "osv=0" >> "$GITHUB_OUTPUT"; echo "actionlint=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          docker run --rm -v "$PWD:/src" -w /src "$SEMGREP_IMAGE" \
+            semgrep scan --config p/default --config .appsec-baseline/semgrep/tls.yml --metrics=off --exclude .appsec-baseline --sarif --output out/semgrep.sarif || true
+          trivy config --quiet --ignorefile .appsec-baseline/exceptions/trivyignore --format sarif --output out/trivy.sarif infra/ || true
+          # linter configs come from the base branch, never from the PR (a PR could relax them)
+          if git cat-file -e "$BASE_SHA:.github/zizmor.yml" 2>/dev/null; then git show "$BASE_SHA:.github/zizmor.yml" > "$RUNNER_TEMP/zizmor.yml" || exit 1
+          elif git cat-file -e "$BASE_SHA" ; then printf 'rules: {}\n' > "$RUNNER_TEMP/zizmor.yml" # absent in base: tool defaults
+          else echo "::error::base commit unreadable"; exit 1; fi
+          if git cat-file -e "$BASE_SHA:.github/actionlint.yaml" 2>/dev/null; then git show "$BASE_SHA:.github/actionlint.yaml" > "$RUNNER_TEMP/actionlint.yaml" || exit 1
+          elif git cat-file -e "$BASE_SHA" ; then printf '{}\n' > "$RUNNER_TEMP/actionlint.yaml" # absent in base: tool defaults
+          else echo "::error::base commit unreadable"; exit 1; fi
+          zizmor --offline --config "$RUNNER_TEMP/zizmor.yml" --format sarif .github/workflows/ > out/zizmor.sarif || true
           osv-scanner scan source -r --format json --output-file out/osv.json api web ; echo "osv=$?" >> "$GITHUB_OUTPUT"
-          actionlint; echo "actionlint=$?" >> "$GITHUB_OUTPUT"
+          actionlint -config-file "$RUNNER_TEMP/actionlint.yaml"; echo "actionlint=$?" >> "$GITHUB_OUTPUT"
 
       - name: Upload SARIF (semgrep)
         if: always() && hashFiles('out/semgrep.sarif') != ''
@@ -151,6 +170,7 @@ jobs:
 
       - name: Decide
         env:
+          KIND: ${{ steps.kind.outputs.kind }}
           GITLEAKS_RC: ${{ steps.scan.outputs.gitleaks }}
           OSV_RC: ${{ steps.scan.outputs.osv }}
           ACTIONLINT_RC: ${{ steps.scan.outputs.actionlint }}
@@ -168,8 +188,10 @@ jobs:
             echo "::error::osv-scanner error ($OSV_RC)"; fail=1
           fi
           # Semgrep, Trivy, zizmor: error-level SARIF results block; missing or invalid SARIF escalates.
-          python3 .appsec-baseline/gate/security_gate.py --sarif out/semgrep.sarif --sarif out/trivy.sarif \
-            --sarif out/zizmor.sarif --summary "$GITHUB_STEP_SUMMARY" || fail=1
+          if [[ "$KIND" != docs ]]; then # fail-closed: anything but docs runs the SARIF gate
+            python3 -I .appsec-baseline/gate/security_gate.py --sarif out/semgrep.sarif --sarif out/trivy.sarif \
+              --sarif out/zizmor.sarif --summary "$GITHUB_STEP_SUMMARY" || fail=1
+          fi
           exit $fail
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -179,11 +201,11 @@ jobs:
           path: out/
           retention-days: 30
 
-  # Single required check aggregating everything above.
+  # Single required check aggregating everything above (skipped or cancelled = fail).
   security-gate:
     name: security-gate
     if: always()
-    needs: [requirements, threat-model, workflow-iac, scanners]
+    needs: [tests, verify, scanners]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions: {}

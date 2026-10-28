@@ -1,8 +1,7 @@
 name: deploy
 
-# main → build → DAST (ZAP on the release in kind) → AI security tester + gate → deploy.
-# Deploy waits for the tester (decision 2026-10-21). The tester runs from appsec-baseline's
-# reusable workflow on its protected main branch.
+# main → build → DAST (ZAP on the release in kind) → deploy. No AI in CI (change 0001).
+# Deploy waits for build and the ZAP baseline (dast); ZAP alerts don't stop it until change 0002 (EXC-001).
 
 on:
   push:
@@ -88,25 +87,8 @@ jobs:
           path: zap/zap.json
           retention-days: 30
 
-  security-tester:
-    needs: [dast]
-    uses: ai-sdlc-lab/appsec-baseline/.github/workflows/security-review.yml@main
-    permissions:
-      contents: read
-      id-token: write
-      pull-requests: write
-      actions: read
-    with:
-      reviewer: security-tester
-      model: ${{ vars.TESTER_MODEL }}
-      zap_artifact: zap-report
-      anthropic_organization_id: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
-      anthropic_federation_rule_id: ${{ vars.ANTHROPIC_REVIEW_RULE_ID }}
-      anthropic_service_account_id: ${{ vars.ANTHROPIC_REVIEW_SERVICE_ACCOUNT_ID }}
-      anthropic_workspace_id: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
-
   deploy:
-    needs: [build, security-tester]
+    needs: [build, dast] # ZAP runs before every deploy; its alerts don't stop it until change 0002 (EXC-001)
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     environment: dev # only main may deploy here (lab-admin BL-09); the role trusts only this environment
