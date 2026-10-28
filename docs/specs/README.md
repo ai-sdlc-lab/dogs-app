@@ -9,4 +9,4 @@ One directory per change: `docs/specs/<id>/`.
 | `PLAN-<NNNN>.md` | 3 plan | author agent |
 | `reviews/<reviewer>.json` | every stage | each reviewer: verdict, findings, file hashes |
 
-Files carry the change ID (`INT-0001.md`, `SPEC-0001.md`, `TRACE-0001.md`, `THREAT-0001.md`, `PLAN-0001.md`). One feature branch per change; each stage is a PR into it, merged by the owner (the stage gate); one final PR to `main` when the change is implemented and validated. What each stage produces and how it is evaluated: `docs/pipeline.md` → "Agreed process".
+Files carry the change ID (`INT-0001.md`, `SPEC-0001.md`, `TRACE-0001.md`, `THREAT-0001.md`, `PLAN-0001.md`). One feature branch per change; each stage is a PR into it, merged by the session once its checks pass; one final PR to `main`, approved by the owner, when the change is implemented and validated. What each stage produces and how it is evaluated: `docs/pipeline.md` → "Agreed process".
