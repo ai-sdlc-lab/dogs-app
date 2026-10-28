@@ -1,0 +1,70 @@
+{
+  "reviewer": "architecture-conformance",
+  "verdict": "block",
+  "findings": [
+    {
+      "id": "AC-001",
+      "section": "dogs-app D-10 (api/requirements-dev.txt unchanged)",
+      "severity": "high",
+      "needs_human": false,
+      "evidence": "D-10 says 'api/requirements-dev.txt unchanged (pytest already present)'. The new tests/process tests (test_workflows, test_settings, test_agents, test_codeowners, SKILL/frontmatter parsing) must parse YAML, and test_review_schema_reviewer_enum needs the schema. api/requirements-dev.txt is a hashed pip-compile lockfile with pytest/ruff/httpx2; grep finds no PyYAML or jsonschema in api/requirements*.txt. SPEC 2.5 and M-13 require hashed installs (--require-hashes), and ci.yml installs only api/requirements.txt + requirements-dev.txt.",
+      "recommendation": "Add a step (and files) that adds PyYAML (and jsonschema if used) to api/requirements-dev.in and the regenerated hashed requirements-dev.txt, or a separate hashed tests/process/requirements.txt, and use it in the new security.yml `tests` job. Otherwise parse workflows without third-party libs. Also list the file in Plan Files, since plan_drift will fail on an unlisted changed path."
+    },
+    {
+      "id": "AC-002",
+      "section": "dogs-app D-07/D-10 (tests job, Makefile)",
+      "severity": "medium",
+      "needs_human": false,
+      "evidence": "Existing `make test` (Makefile) and ci.yml job `api` run api tests and `.claude/hooks` tests; D-10 adds `make test-process` and D-07 adds a `tests` job in security.yml producing JUnit. The plan never says whether `ci` also runs test-process (duplicate runs) or what the `tests` job invokes (Python 3.14 setup, pytest --junitxml, which dirs: tests/process, .claude/hooks, api). `Makefile` is not in any step's Files column beyond the D-10 target mention, and `.github/workflows/ci.yml` is not listed at all although the hook tests already run there.",
+      "recommendation": "State in D-07/D-10 the exact command of the `tests` job (setup-python 3.14, hashed install, `pytest --junitxml` over tests/process and .claude/hooks) and whether `make test` includes test-process. List Makefile explicitly in Files."
+    },
+    {
+      "id": "AC-003",
+      "section": "appsec-baseline A-03 vs SPEC 2.1",
+      "severity": "low",
+      "needs_human": false,
+      "evidence": "SPEC 2.1 lists the script as `stage/gate.py`; the plan keeps `gate/security_gate.py` and `gate/redact.py` (existing layout) while all other new scripts go to `stage/`. Two script directories, two requirements files (existing gate/requirements.txt and new stage/requirements.txt) with no stated reason. SPEC also says test `test_gate_*` and `gate/test_redact.py` extended, so the split is partly consistent, but the spec path and the plan path disagree.",
+      "recommendation": "Either note in the plan that spec's `gate.py` = existing `gate/security_gate.py` (extended, not renamed), or move it. Say why stage/requirements.txt is separate from gate/requirements.txt (or merge them) to avoid two hashed lockfiles to maintain."
+    },
+    {
+      "id": "AC-004",
+      "section": "dogs-app D-03/D-02 vs SPEC 7, M-09",
+      "severity": "medium",
+      "needs_human": false,
+      "evidence": "M-09 requires the plugin to be loaded with `--plugin-dir .appsec-baseline`, and the checkout of appsec-baseline at the lock SHA into `.appsec-baseline/`; SPEC 7 requires hook, gate and loop to write JSON Lines to .claude/stage-log.jsonl with 30-day deletion by the loop. No plan step creates the checkout/plugin-dir launch mechanism (D-02 only checks it), no step makes protect-paths.py emit authz.denied/authz.ask events via log.py (test_log_events only covers log.py), and nothing implements the 30-day log cleanup (SPEC 6).",
+      "recommendation": "Add to D-02/D-03/D-05 the checkout-at-lock step and plugin-dir invocation, hook event logging (with a test), and stage-log retention cleanup (with a test), or state explicitly which are SKILL.md prose only."
+    },
+    {
+      "id": "AC-005",
+      "section": "Docs updated (D-11, L-02, appsec-baseline)",
+      "severity": "medium",
+      "needs_human": false,
+      "evidence": "appsec-baseline README.md line 8 lists templates `threat-model.md`, `security-traceability.md`, which A-12 renames to TRACE.md/THREAT.md; README and `.claude-plugin/plugin.json` are not in any appsec-baseline step (plan_drift would fail if they change; stale docs otherwise). dogs-app docs/architecture.md: plan updates only trust boundary 5 and 'Phase 3' title/known gaps are untouched; it does not describe the new local-session-to-Claude trust boundary or the verifier/appsec-baseline-at-lock-SHA dependency. dogs-app CLAUDE.md 'Rules' line 20 and 'How features are built' still describe the old CI flow and say hooks will be updated; D-11 lists CLAUDE.md, ok. lab-admin docs/PROJECT.md and KIT-DESIGN.md are in L-02. Missing: appsec-baseline README/plugin.json, and architecture.md text for the new boundary (laptop session -> Anthropic subscription, GitHub via owner login).",
+      "recommendation": "Add appsec-baseline README.md (and plugin.json if it lists agents/templates) to A-11/A-12 Files. In D-11 specify architecture.md gets a replacement boundary 5 describing the local session and the CI verifier, not just removal."
+    },
+    {
+      "id": "AC-006",
+      "section": "Rollout / order of work",
+      "severity": "medium",
+      "needs_human": true,
+      "evidence": "Order step 1 makes the appsec-baseline PR merge to main before dogs-app, correct for the lock SHA. But the dogs-app lock must be the merge commit of that PR; if the owner squash/merges and a later appsec-baseline fix is needed (e.g. a review finding in dogs-app code stage), the lock changes and every report's `appsec_sha` and the workflow `uses:` pin must be regenerated; the plan has no rule for this. Also appsec-baseline's own PR to main is not verified by the new verifier (its ci.yml only), and L-01 swaps appsec-baseline required checks to `gate`,`scanners` in the same lab-admin apply after merge, so `scanners` is not required on the PR that introduces it.",
+      "recommendation": "Add a note: if appsec-baseline changes after the lock is taken, re-lock and re-run affected reviews; and either accept explicitly that appsec-baseline PR is not covered by `scanners` as a required check, or apply an interim required-check change. Owner to confirm."
+    },
+    {
+      "id": "AC-007",
+      "section": "lab-admin L-01 / SPEC 8 allowlist",
+      "severity": "low",
+      "needs_human": false,
+      "evidence": "L-01 removes `anthropics/claude-code-action@*` and `oven-sh/setup-bun` from the Actions allowlist. Checked: appsec-baseline security-review.yml (kept, dormant) installs the Claude CLI via npm from tools/claude and does not use claude-code-action, so removal does not break it. 'Re-enabling the CI reviewers' (D-11) must then also say that the allowlist entries are re-added only if the action is used again; the SPEC 8 re-enable list omits labels and allowlist.",
+      "recommendation": "Optionally mention allowlist and labels in the re-enable section; no plan change otherwise required."
+    },
+    {
+      "id": "AC-008",
+      "section": "SPEC 2.6 / SR-022",
+      "severity": "low",
+      "needs_human": false,
+      "evidence": "SPEC 6 says Semgrep rules on code PRs forbid `http://`, `--insecure`, `verify=False` (SR-022). No step adds a Semgrep rule or config for this (D-07 only makes scanners path-scoped); A-10 test list has no corresponding rule test.",
+      "recommendation": "Add a Semgrep rule file to D-07 (or A-10) with a named test, or reword the spec; otherwise SR-022 'How satisfied' has no implementing step."
+    }
+  ]
+}
