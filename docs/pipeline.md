@@ -11,7 +11,7 @@ How every change is built. Start a session in this repo with `claude --plugin-di
 - All LLM work (authoring and reviews) runs as subagents in the owner's local Claude Code session. **CI makes no LLM calls**: it runs scripts and scanners only.
 - Any finding against a security requirement (all SRs are MUST) **escalates to the owner**: fix it, or accept it as an exception (reason, expiry) in appsec-baseline. Agents never decide.
 - PR comments only for findings that need the owner (issue #9); passing results stay in logs and `reviews/`. No comment = nothing to report. Findings on `main`: one GitHub issue per finding (label `security-finding`).
-- Old code is not assessed up front: stage 4 checks every touched file against all applicable SRs, so gaps surface when their code changes.
+- Old code is not assessed up front: stage 4 reviews the changed lines against all applicable SRs.
 
 | Stage | Produces | Evaluated | How |
 |---|---|---|---|
@@ -27,7 +27,7 @@ How every change is built. Start a session in this repo with `claude --plugin-di
 | | | every SR and mitigation has a task and a named test | script (ID cross-check) + LLM: security architect |
 | 4 code | code + tests (`plan.md` updated if the work departs from it) | lint, tests, build, kind deploy | CI `ci` |
 | | | named tests exist and pass; changed files are in the plan | scripts |
-| | | mitigations and SRs implemented; touched files vs all applicable SRs | LLM: security code reviewer |
+| | | mitigations and SRs implemented; changed lines vs all applicable SRs (when a path outside `docs/`, `.github/`, `infra/` changed) | LLM: security code reviewer |
 | | | workflows / IaC (when changed) | LLM: workflow/IaC reviewer + zizmor, actionlint, Trivy |
 | | | code and dependencies | Semgrep, OSV-Scanner, gitleaks |
 | | | a report per required reviewer, matching the files (hash) | script (CI verifier) |
@@ -37,6 +37,18 @@ How every change is built. Start a session in this repo with `claude --plugin-di
 | 6 finding | GitHub issue → new `intent.md` | back to stage 1 | |
 
 Docs-only PRs run gitleaks + the verifier only. Implementation starts only when every plan review passes.
+
+### Which reviewer runs when
+
+| Stage | Reviewers | Runs | Gets |
+|---|---|---|---|
+| intent | intent-completeness (Haiku), requirements auditor (Sonnet) | always | the whole artifact |
+| spec | spec-completeness (Haiku), requirements auditor, security architect (Sonnet) | always | the whole artifact + INT |
+| plan | architecture-conformance, security architect (Sonnet) | always | the whole artifact + earlier artifacts |
+| code | security code reviewer (Sonnet) | a changed path outside `docs/`, `.github/`, `infra/` | the diff of those paths + PLAN, TRACE, THREAT |
+| code | workflow/IaC reviewer (Sonnet) | a changed path under `.github/` or `infra/` | the diff of those paths |
+
+Rounds: round 1 runs every reviewer that applies. From round 2 only the reviewers with open findings run again, with their findings and what changed since their last run; a reviewer that passed keeps its pass. A reviewer runs again anyway when a fix adds a path it now applies to. Trade-off (owner decision 2026-10-30): a fix made for one reviewer is not re-checked by the others. The rules live in `stages.yml` (`conditional`: reviewer → path regex) and the CI verifier enforces them.
 
 ## CI (no AI)
 
