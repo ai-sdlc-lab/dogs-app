@@ -1,5 +1,5 @@
 {
-  "model": "claude-opus-5-5",
+  "model": "claude-sonnet-5-5",
   "hooks": {
     "PreToolUse": [
       {
@@ -54,7 +54,20 @@
       "Read(**/*.tfstate*)",
       "Read(**/*.tfvars)",
       "Read(**/*.pem)",
-      "Read(**/id_*)"
+      "Read(**/id_*)",
+      "Bash(gh api*)",
+      "Bash(gh repo delete*)",
+      "Bash(gh repo edit*)",
+      "Bash(gh secret*)",
+      "Bash(gh variable*)",
+      "Bash(gh auth*)",
+      "Bash(gh workflow*)"
+    ],
+    "allow": [
+      "Bash(git *)",
+      "Bash(gh *)",
+      "Bash(python3 *)",
+      "Bash(make *)"
     ]
   }
 }

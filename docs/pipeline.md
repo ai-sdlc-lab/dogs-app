@@ -4,7 +4,7 @@ A plain-language guide to the automation around dogs-app: what runs, when, with 
 
 ## The SDLC workflow (change 0001)
 
-How every change is built. Start a session in this repo with `claude --plugin-dir .appsec-baseline` and say `/stage intent <idea>`; the steps are in `.claude/skills/stage/SKILL.md`.
+How every change is built. Start a session in this repo with `claude --plugin-dir .appsec-baseline --permission-mode acceptEdits` and say `/stage intent <idea>`. Models: the session on Sonnet (it runs scripts and starts subagents), the author on Opus, reviewers on Sonnet or Haiku. Permissions: `git`, `gh`, `python3` and `make` are allowed; `gh api`, `gh repo delete|edit`, `gh secret`, `gh variable`, `gh auth`, `gh workflow`, apply/destroy and `aws` are denied; the hook denies merges and pushes into `main` and protected-file edits; the steps are in `.claude/skills/stage/SKILL.md`.
 
 - One feature branch per change (`feature/<NNNN>-<slug>`). Agents work there autonomously: each stage (one md file, or the code) is a PR from `stage/<NNNN>-<stage>` into the feature branch, merged by the session once the stage's checks pass. The owner is asked only for product facts the agents can't know and for decisions on security-requirement findings.
 - **The only human gate is the merge to `main`**, which deploys: one PR from the feature branch to `main` after implementation and validation, with required checks and the owner's approval. Agents never merge into `main`.

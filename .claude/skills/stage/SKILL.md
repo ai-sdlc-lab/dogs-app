@@ -33,11 +33,12 @@ Read `stages.yml` for the stage's template, author and reviewers. Which reviewer
 5. **Gate:** `python3 -I -B .appsec-baseline/gate/security_gate.py --repo dogs-app --reviewer <name>=<file> ...`. Exit 0 allow, 1 block, 3 questions, 2 escalate.
    - **block:** findings (IDs and recommendations only) to the author; next round.
    - **questions:** ask the owner, in plain words, what is missing and why it matters; put the answer into the artifact; next round.
-   - **escalate:** show the owner each finding (SR, file, one-line evidence) and ask: fix, or accept. Accept means an entry in appsec-baseline `exceptions/sr-exceptions.yml` (SR, exact paths, reason, expiry ≤ 180 days) by a PR the owner merges, then `owner_ack: true` on that finding. Log `owner.decision`.
+   - **escalate:** show the owner each finding (SR, file, one-line evidence) and ask: fix, or accept. Accept means an entry in appsec-baseline `exceptions/sr-exceptions.yml` (SR, exact paths, reason, expiry ≤ 180 days) by a PR the owner merges, then `owner_ack: true` on that finding. Log `owner.decision`. dogs-app sees the exception only at a lock that contains it: prepare a PR to `main` that sets `appsec-baseline.lock` and the three pins in `.github/workflows/security.yml` to the new appsec-baseline `main` commit, tell the owner to merge it, then `git merge main` into the feature branch and continue.
    - **allow:** continue.
 6. Spec stage: write `TRACE-<NNNN>.md` and `THREAT-<NNNN>.md` only with `python3 -I -B .appsec-baseline/stage/write_artifact.py <output.json> . <path>`.
 7. Plan stage: `python3 -I -B .appsec-baseline/stage/crosscheck.py TRACE THREAT PLAN` must pass.
 8. Code stage: run the tests (`make test`), then `python3 -I -B .appsec-baseline/stage/plan_drift.py ...`.
+   If the code stage changes `PLAN-<NNNN>.md`, the plan reports no longer match it: run the plan stage's reviewers again on the new PLAN (gate as above) and commit their updated `PLAN-<NNNN>.*.json` reports in the same stage PR.
 9. After round 3 with findings still open: stop the change and show the owner what is open.
 
 ## 2. Commit the stage
