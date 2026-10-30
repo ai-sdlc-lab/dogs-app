@@ -92,6 +92,16 @@ def hook_self_test(root: Path = ROOT, py: str = sys.executable) -> list[str]:
     return out
 
 
+def deps_problems() -> list[str]:
+    """The stage scripts need PyYAML and jsonschema: run everything with the project venv (`make venv`)."""
+    try:
+        import jsonschema  # noqa: F401
+        import yaml  # noqa: F401
+    except ImportError as e:
+        return [f"{e.name} missing: run the stage scripts with .venv/bin/python3 (make venv)"]
+    return []
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--slug")
@@ -102,6 +112,7 @@ def main(argv=None) -> int:
         errs.append(f"unsafe slug {a.slug[:60]!r}: lowercase words joined by '-', 3-40 characters, at most 5 words")
     if a.change is not None and not CHANGE.match(a.change):
         errs.append("change number must be 4 digits")
+    errs += deps_problems()
     errs += problems()
     errs += aws_problems()
     errs += settings_problems()

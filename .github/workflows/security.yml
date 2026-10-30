@@ -143,7 +143,12 @@ jobs:
           fi
           docker run --rm -v "$PWD:/src" -w /src "$SEMGREP_IMAGE" \
             semgrep scan --config p/default --config .appsec-baseline/semgrep/tls.yml --metrics=off --exclude .appsec-baseline --sarif --output out/semgrep.sarif || true
-          trivy config --quiet --ignorefile .appsec-baseline/exceptions/trivyignore --format sarif --output out/trivy.sarif infra/ || true
+          # Trivy exceptions (security/trivyignore) come from the base branch: a change can't silence its own scan.
+          # Absent in base (only the PR that adds the file): the PR's copy, like the verifier's BOOTSTRAP mode.
+          if git cat-file -e "$BASE_SHA:security/trivyignore" 2>/dev/null; then git show "$BASE_SHA:security/trivyignore" > "$RUNNER_TEMP/trivyignore" || exit 1
+          elif [[ -f security/trivyignore && ! -L security/trivyignore ]]; then cp security/trivyignore "$RUNNER_TEMP/trivyignore"
+          else : > "$RUNNER_TEMP/trivyignore"; fi
+          trivy config --quiet --ignorefile "$RUNNER_TEMP/trivyignore" --format sarif --output out/trivy.sarif infra/ || true
           # linter configs come from the base branch, never from the PR (a PR could relax them)
           if git cat-file -e "$BASE_SHA:.github/zizmor.yml" 2>/dev/null; then git show "$BASE_SHA:.github/zizmor.yml" > "$RUNNER_TEMP/zizmor.yml" || exit 1
           elif git cat-file -e "$BASE_SHA" ; then printf 'rules: {}\n' > "$RUNNER_TEMP/zizmor.yml" # absent in base: tool defaults

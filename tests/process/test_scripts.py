@@ -139,3 +139,22 @@ def test_stage_log_prune_survives_naive_timestamps(tmp_path):
 def test_final_pr_body_lists_code_running_config(tmp_path):
     body = final_pr_body.body([".mcp.json", ".vscode/tasks.json", ".envrc"], root=tmp_path)
     assert ".mcp.json" in body and ".vscode/tasks.json" in body and ".envrc" in body
+
+
+def test_final_pr_body_starts_with_what_the_owner_decides(tmp_path):
+    ch = tmp_path / "docs/specs/0007-x"
+    (ch / "reviews").mkdir(parents=True)
+    (ch / "reviews/CODE-0007.security-code-reviewer.json").write_text(
+        json.dumps({"reviewer": "security-code-reviewer", "findings": [
+            {"id": "SCR-002", "severity": "high", "sr_ref": "SR-005", "file": "api/app/main.py", "evidence": "stack trace in 500", "status": "open"}]})
+    )
+    (ch / "decisions.md").write_text("# Decisions\n- spec: no Cache-Control (not required by SR-004)\n")
+    (tmp_path / "security").mkdir()
+    (tmp_path / "security/exceptions.yml").write_text(
+        "- id: EXC-001\n  sr: [SR-002]\n  approved_by: owner\n- id: EXC-002\n  sr: [SR-004]\n  approved_by: agent\n"
+    )
+    paths = ["docs/specs/0007-x/reviews/CODE-0007.security-code-reviewer.json", "docs/specs/0007-x/decisions.md", "security/exceptions.yml"]
+    body = final_pr_body.body(paths, root=tmp_path, base_exceptions="- id: EXC-001\n")
+    top = body.split("## Owner review")[0]
+    assert "SCR-002 [high] SR-005" in top and "no Cache-Control" in top
+    assert "EXC-002" in top and "EXC-001" not in top

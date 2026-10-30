@@ -165,3 +165,56 @@ def test_hook_main_session_writes_scratch_in_repo(project):
     root = project()
     for mode in ("default", "acceptEdits"):
         assert hook(root, path=".stage-tmp/spec-security-requirements-auditor.json", extra={"permission_mode": mode}) == "allow"
+
+
+PY = ".venv/bin/python3 -I -B"
+SKILL_COMMANDS = [  # every command the stage skill runs, one per Bash call (keep in sync with SKILL.md)
+    f"{PY} scripts/appsec_checkout.py",
+    f"{PY} scripts/preflight.py --slug demo --change 0007",
+    f"{PY} scripts/stage_log.py stage.start success change=0007 stage=spec",
+    "git checkout -b feature/0007-demo main",
+    "git checkout -b stage/0007-spec",
+    "git diff --name-only feature/0007-demo...HEAD",
+    "git diff feature/0007-demo...HEAD -- api/app/main.py",
+    f"{PY} .appsec-baseline/stage/structure.py .claude/skills/stage/templates/SPEC.md docs/specs/0007-demo/SPEC-0007.md",
+    f"{PY} .appsec-baseline/stage/validate.py output .stage-tmp/spec-security-architect.json",
+    f"{PY} .appsec-baseline/gate/security_gate.py --repo dogs-app --exceptions security/exceptions.yml"
+    " --reviewer security-architect=.stage-tmp/spec-security-architect.json",
+    f"{PY} .appsec-baseline/stage/write_artifact.py .stage-tmp/spec-security-architect.json . docs/specs/0007-demo/THREAT-0007.md",
+    f"{PY} .appsec-baseline/stage/hash.py docs/specs/0007-demo/SPEC-0007.md",
+    f"{PY} .appsec-baseline/stage/crosscheck.py docs/specs/0007-demo/TRACE-0007.md docs/specs/0007-demo/THREAT-0007.md"
+    " docs/specs/0007-demo/PLAN-0007.md",
+    f"{PY} .appsec-baseline/stage/validate.py report docs/specs/0007-demo/reviews/SPEC-0007.security-architect.json",
+    "make test",
+    "git add -A",
+    "git commit -m 'SPEC-0007: spec stage'",
+    "git push -u origin stage/0007-spec",
+    "git merge main",
+    "gh pr create --base feature/0007-demo --title 'SPEC-0007' --body 'spec stage'",
+    "gh pr checks --watch",
+    "gh run view 123 --log-failed",
+    f"{PY} scripts/final_pr_body.py main > .stage-tmp/body.md",
+    "gh pr create --base main --head feature/0007-demo --body-file .stage-tmp/body.md",
+]
+SESSION_WRITES = [
+    ".stage-tmp/spec-security-architect.json",
+    "security/exceptions.yml",
+    "docs/specs/0007-demo/decisions.md",
+    "docs/specs/0007-demo/reviews/SPEC-0007.security-architect.json",
+]
+
+
+@pytest.mark.parametrize("cmd", SKILL_COMMANDS)
+def test_hook_allows_every_skill_command_in_accept_edits(project, cmd):
+    """Dry run of the stage skill (2026-10-30): no command it uses may be blocked after the intent stage."""
+    assert hook(project("stage/0007-spec"), tool="Bash", command=cmd, extra={"permission_mode": "acceptEdits"}) == "allow"
+
+
+@pytest.mark.parametrize("path", SESSION_WRITES)
+def test_hook_allows_every_session_write_in_accept_edits(project, path):
+    assert hook(project("stage/0007-spec"), path=path, extra={"permission_mode": "acceptEdits"}) == "allow"
+
+
+def test_hook_allows_author_stage_file_in_accept_edits(project):
+    root = project("stage/0007-spec")
+    assert hook(root, path="docs/specs/0007-demo/SPEC-0007.md", agent=AUTHOR, extra={"permission_mode": "acceptEdits"}) == "allow"
