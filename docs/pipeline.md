@@ -2,7 +2,7 @@
 
 A plain-language guide to the automation around dogs-app: what runs, when, with which credentials, and why it is built this way.
 
-## The stage loop (change 0001)
+## The SDLC workflow (change 0001)
 
 How every change is built. Start a session in this repo with `claude --plugin-dir .appsec-baseline` and say `/stage intent <idea>`; the steps are in `.claude/skills/stage/SKILL.md`.
 
@@ -55,15 +55,15 @@ Rounds: round 1 runs every reviewer that applies. From round 2 only the reviewer
 | Workflow | Starts when | Jobs |
 |---|---|---|
 | `ci.yml` | every PR | api (ruff, pytest), web (build), infra (fmt, validate, tflint), kind deploy + health |
-| `security.yml` | every PR | `stage-process tests` (JUnit), `stage reviews / verify` (appsec-baseline `verify.yml` at the lock SHA: reports, hashes, statuses, exceptions, structure, cross-check, plan drift, named tests), `security scanners` (docs-only diff: gitleaks; code diff: Semgrep incl. SR-022 rules, OSV-Scanner, gitleaks, Trivy, zizmor, actionlint), `security checks` (all of them) |
+| `security.yml` | every PR | `tests (workflow + app)` (SDLC workflow and app tests, one JUnit file), `stage reviews / verify` (appsec-baseline `verify.yml` at the lock SHA: reports, hashes, statuses, exceptions, structure, cross-check, plan drift, named tests), `security scanners` (docs-only diff: gitleaks; code diff: Semgrep incl. SR-022 rules, OSV-Scanner, gitleaks, Trivy, zizmor, actionlint), `stage gate` (tests + verify) |
 | `deploy.yml` | merge to `main` | build → ZAP baseline in kind → deploy to AWS (OIDC, environment `dev`). ZAP alerts don't stop the deploy until change 0002 (exception EXC-001, expires 2026-12-31) |
 
-Required on `main`: `build-and-test`, `stage reviews / verify`, `security checks`.
+Required on `main`, one check per purpose: `build-and-test` (quality), `stage gate` (the change went through the SDLC workflow), `security scanners` (security).
 
 ## Re-enabling the CI reviewers
 
 The CI LLM reviewers were switched off in change 0001; appsec-baseline keeps `security-review.yml` (dormant) as the comparison arm. To run them again:
 
-1. In `security.yml`, re-add caller jobs `requirements`, `threat-model`, `workflow-iac` (`uses: ai-sdlc-lab/appsec-baseline/.github/workflows/security-review.yml@main`, `permissions: contents: read, id-token: write, pull-requests: write`, inputs `reviewer`, `model`, `anthropic_*`) and add them to `security-gate` `needs`; in `deploy.yml`, re-add `security-tester` before `deploy`.
+1. In `security.yml`, re-add caller jobs `requirements`, `threat-model`, `workflow-iac` (`uses: ai-sdlc-lab/appsec-baseline/.github/workflows/security-review.yml@main`, `permissions: contents: read, id-token: write, pull-requests: write`, inputs `reviewer`, `model`, `anthropic_*`) and add them to `stage-gate` `needs`; in `deploy.yml`, re-add `security-tester` before `deploy`.
 2. In lab-admin `github.tf`: re-add the required checks `security/requirements / review` and `security/threat-model / review`, and the repo variables `REVIEWER_MODEL`, `ARCHITECT_MODEL`, `TESTER_MODEL` and `ANTHROPIC_ORGANIZATION_ID`, `ANTHROPIC_WORKSPACE_ID`, `ANTHROPIC_REVIEW_RULE_ID`, `ANTHROPIC_REVIEW_SERVICE_ACCOUNT_ID`. Add `anthropics/claude-code-action@*` to the Actions allowlist only if that action is used again.
 3. In the Anthropic Console: re-create the reviewer federation rule (`job_workflow_ref` = appsec-baseline `security-review.yml@refs/heads/main`, org 343500886) and its service account; buy API credits.

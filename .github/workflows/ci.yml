@@ -33,7 +33,7 @@ jobs:
       - name: ruff
         working-directory: api
         run: ruff check . && ruff format --check .
-      - run: make test-api PY=python # stage-loop and hook tests run in security.yml job `tests`
+      - run: make test-api PY=python # SDLC workflow tests run in security.yml job `tests`
 
   web:
     name: "web: build"

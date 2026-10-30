@@ -81,9 +81,9 @@ def test_security_yml_verify_uses_sha_pin():
     assert wf("security.yml")["jobs"]["verify"]["uses"].endswith("@" + LOCK)
 
 
-def test_security_gate_fails_on_skipped_need():
-    job = wf("security.yml")["jobs"]["security-gate"]
-    assert job["if"] == "always()" and set(job["needs"]) == {"tests", "verify", "scanners"}
+def test_stage_gate_fails_on_skipped_need():
+    job = wf("security.yml")["jobs"]["stage-gate"]
+    assert job["if"] == "always()" and set(job["needs"]) == {"tests", "verify"}
     assert job["permissions"] == {} and job["timeout-minutes"] <= 30
     assert '[ "$r" = success ] || exit 1' in job["steps"][0]["run"]
 
