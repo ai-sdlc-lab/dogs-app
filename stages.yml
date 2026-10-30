@@ -24,7 +24,8 @@ stages:
     scripts: [crosscheck]
   code:
     author: author
-    reviewers: [security-code-reviewer]
-    conditional:
+    reviewers: []
+    conditional:  # reviewer -> regex on changed non-docs paths; it runs only when one matches
+      security-code-reviewer: '^(?!\.github/|infra/)'
       workflow-iac-reviewer: '^(\.github/|infra/)'
     scripts: [named-tests, plan-drift]

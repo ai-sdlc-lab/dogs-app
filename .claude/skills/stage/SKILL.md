@@ -21,11 +21,14 @@ Process: `docs/pipeline.md` → "Agreed process" and change 0001 (`docs/specs/00
 4. Branches: `feature/<NNNN>-<slug>` from `main` (first stage only); then `stage/<NNNN>-<stage>` from the feature branch.
 
 ## 1. Each stage (intent, spec, plan, code)
-Read `stages.yml` for the stage's template, author and reviewers. For up to `max_rounds` (3) rounds:
+Read `stages.yml` for the stage's template, author and reviewers. Which reviewer runs when, and what it gets: `docs/pipeline.md` → "Which reviewer runs when". For up to `max_rounds` (3) rounds:
 
 1. **Author:** start the `author` subagent with: stage, change folder, template path, earlier artifacts, and (from round 2) the open findings by ID. It writes only that stage's file (the hook enforces this).
 2. **Structure:** `python3 -I -B .appsec-baseline/stage/structure.py <template> <artifact>`; failures go back to the author as findings.
-3. **Reviewers:** start each reviewer from `stages.yml` as a subagent (security agents come from the plugin loaded with `--plugin-dir .appsec-baseline`). Give it: the artifact, the change's earlier artifacts, the requirements path, owner decisions so far. Code stage: also the changed files list; add `workflow-iac-reviewer` when a changed path matches `^(\.github/|infra/)`.
+3. **Reviewers** (security agents come from the plugin loaded with `--plugin-dir .appsec-baseline`):
+   - **Which:** intent, spec, plan: every reviewer in `reviewers`. Code: each reviewer in `conditional` whose regex matches a changed path outside `docs/` (`git diff --name-only feature/<NNNN>-<slug>...HEAD`); that set of paths is the reviewer's scope.
+   - **Round 1:** all of them. **Round 2+:** only reviewers whose last result was not `allow`, plus any code reviewer whose regex newly matches a changed path. A reviewer that passed is not run again.
+   - **Gives:** intent, spec, plan: the artifact, the change's earlier artifacts, the requirements path, owner decisions so far. Code: `git diff feature/<NNNN>-<slug>...HEAD -- <its paths>`, plus PLAN, TRACE, THREAT and the requirements path; never the whole repo. Round 2+: its open findings by ID and the diff since its last run (`git diff <commit it reviewed>..HEAD -- <its paths>`, or the artifact for intent/spec/plan).
 4. Save each reviewer's raw JSON to `$TMPDIR`, then `python3 -I -B .appsec-baseline/stage/validate.py output <file>` (redacts; a non-zero exit escalates).
 5. **Gate:** `python3 -I -B .appsec-baseline/gate/security_gate.py --repo dogs-app --reviewer <name>=<file> ...`. Exit 0 allow, 1 block, 3 questions, 2 escalate.
    - **block:** findings (IDs and recommendations only) to the author; next round.
@@ -38,7 +41,7 @@ Read `stages.yml` for the stage's template, author and reviewers. For up to `max
 9. After round 3 with findings still open: stop the change and show the owner what is open.
 
 ## 2. Commit the stage
-1. Reports: one `reviews/<STAGE>-<NNNN>.<reviewer>.json` per reviewer (review-report schema): reviewer, stage, change, model, round, `appsec_sha` = lock, `files` = SHA-256 (`.appsec-baseline/stage/hash.py`) of every file it reviewed (code stage: every changed non-docs file), `produced` (TRACE/THREAT hashes), verdict `allow`, findings with the gate's status (fixed findings are dropped; SR findings only as `accepted-risk` with `exception` and `owner_ack`).
+1. Reports: one `reviews/<STAGE>-<NNNN>.<reviewer>.json` per reviewer (review-report schema): reviewer, stage, change, model, round, `appsec_sha` = lock, `files` = SHA-256 (`.appsec-baseline/stage/hash.py`) of the final version of every file in its scope (code stage: every changed non-docs file its regex matches), `round` = the round it last ran, `produced` (TRACE/THREAT hashes), verdict `allow`, findings with the gate's status (fixed findings are dropped; SR findings only as `accepted-risk` with `exception` and `owner_ack`).
 2. `python3 -I -B .appsec-baseline/stage/validate.py report <each report>`.
 3. Commit, push the stage branch, `gh pr create --base feature/<NNNN>-<slug>`. **No review comment.**
 4. Wait for CI (`gh pr checks`); when green, `gh pr merge --merge --delete-branch` (into the feature branch only); log `pr.merged`.
