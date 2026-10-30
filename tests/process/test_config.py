@@ -64,7 +64,7 @@ def test_agents_match_spec_table():
         fm = frontmatter(p)
         assert (fm["model"], fm["maxTurns"], {t.strip() for t in fm["tools"].split(",")}) == (model, turns, tools), name
         assert "Untrusted input rule" in p.read_text()
-    assert SETTINGS["model"] == "claude-opus-5-5"
+    assert SETTINGS["model"] == "claude-sonnet-5-5"  # session on Sonnet; the author agent on Opus (2026-10-30)
 
 
 # --- workflows (D-07, D-08) ------------------------------------------------------------------
@@ -166,3 +166,9 @@ def test_linter_configs_come_from_base():
     text = (ROOT / ".github/workflows/security.yml").read_text()
     assert 'git show "$BASE_SHA:.github/zizmor.yml"' in text and '--config "$RUNNER_TEMP/zizmor.yml"' in text
     assert 'actionlint -config-file "$RUNNER_TEMP/actionlint.yaml"' in text
+
+
+def test_settings_deny_admin_gh_commands():
+    deny = SETTINGS["permissions"]["deny"]
+    for rule in ("Bash(gh api*)", "Bash(gh repo delete*)", "Bash(gh repo edit*)", "Bash(gh secret*)", "Bash(gh variable*)", "Bash(gh auth*)", "Bash(gh workflow*)"):
+        assert rule in deny, rule
