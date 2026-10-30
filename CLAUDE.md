@@ -7,7 +7,7 @@ Read-only dog gallery (FastAPI on Lambda + Vite/TypeScript, S3 images). Architec
 - Infra: `make plan` then `make apply` (local only with `AWS_PROFILE=sdlc-lab-admin`; CI deploys on `main`)
 
 ## How features are built
-Start: a Claude Code session in this repo started with `claude --plugin-dir .appsec-baseline`, then `/stage intent <idea>` (steps: `.claude/skills/stage/SKILL.md`). Run `python3 -I -B scripts/appsec_checkout.py` first if `.appsec-baseline/` is missing.
+Once: `make venv` (local Python test environment). Start: a Claude Code session in this repo started with `claude --plugin-dir .appsec-baseline`, then `/stage intent <idea>` (steps: `.claude/skills/stage/SKILL.md`). Run `python3 -I -B scripts/appsec_checkout.py` first if `.appsec-baseline/` is missing.
 Stages: intent → spec → plan → code → release. Never skip or combine stages. Full process (what each stage produces and how it is evaluated): `docs/pipeline.md` → "Agreed process".
 - Branches: one feature branch per change, `feature/<NNNN>-<slug>`, created from `main`. Agents work autonomously there: each stage is written on `stage/<NNNN>-<stage>`, goes by PR into the feature branch, and the session merges it once the stage's checks pass. **The only human gate is the merge to `main`** (it deploys): one PR from the feature branch to `main` after implementation and validation, approved by the owner. Agents never merge into `main`.
 - Per change: folder `docs/specs/<NNNN>-<slug>/` (NNNN = next free 4-digit number). Every artifact file carries the change ID: `INT-<NNNN>.md` (intent), `SPEC-<NNNN>.md`, `TRACE-<NNNN>.md` (security traceability), `THREAT-<NNNN>.md` (threat model), `PLAN-<NNNN>.md`; the first heading starts with the same ID. Review reports in `docs/specs/<NNNN>-<slug>/reviews/`.

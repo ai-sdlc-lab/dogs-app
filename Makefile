@@ -1,9 +1,14 @@
 # Local AWS commands: export AWS_PROFILE=sdlc-lab-admin (aws login). CI injects role credentials.
 BUCKET := sdlc-lab-app-dogs-dev-992382408037
-PY ?= python3.14
+PY ?= $(if $(wildcard .venv/bin/python),$(CURDIR)/.venv/bin/python,python3.14)  # make venv once
 TF := terraform -chdir=infra
 
-.PHONY: test test-api test-process lint build plan apply destroy seed run-api
+.PHONY: venv test test-api test-process lint build plan apply destroy seed run-api
+
+venv:
+	python3.14 -m venv .venv
+	.venv/bin/pip install -q --require-hashes -r api/requirements.txt -r api/requirements-dev.txt
+	.venv/bin/pip install -q --require-hashes -r tests/process/requirements.txt
 
 test: test-api test-process
 
