@@ -1,8 +1,8 @@
 name: security
 
-# Per-PR checks of the local stage loop (change 0001). No AI in CI: the reviews ran in the owner's
+# Per-PR checks of the SDLC workflow (change 0001). No AI in CI: the reviews ran in the owner's
 # session and are committed as reports; appsec-baseline's verifier (pinned to appsec-baseline.lock)
-# checks them, scanners run on the paths they cover, security-gate aggregates.
+# checks them. Required: `stage gate` (tests + verify) and `security scanners`.
 
 on:
   pull_request:
@@ -14,9 +14,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Read-only test run that produces the JUnit the verifier checks named tests against (M-07).
+  # Read-only test run that produces the JUnit the verifier checks named tests against (M-07):
+  # SDLC workflow tests and the app's tests, merged into one file.
   tests:
-    name: stage-process tests
+    name: tests (workflow + app)
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
@@ -35,7 +36,18 @@ jobs:
         with:
           python-version: "3.14"
       - run: python3 -I -m pip install --quiet --require-hashes -r tests/process/requirements.txt
-      - run: python3 -I -B -m pytest -q -p no:cacheprovider --junitxml=junit.xml tests/process
+      - run: python3 -I -m pip install --quiet --require-hashes -r api/requirements.txt -r api/requirements-dev.txt
+      - run: python3 -I -B -m pytest -q -p no:cacheprovider --junitxml=junit-workflow.xml tests/process
+      - run: python3 -B -m pytest -q -p no:cacheprovider --junitxml=../junit-app.xml
+        if: always()
+        working-directory: api
+      - name: Merge JUnit files
+        if: always()
+        run: >-
+          python3 -I -c 'import sys, xml.etree.ElementTree as ET;
+          r = ET.Element("testsuites");
+          [r.extend(ET.parse(f).getroot().iter("testsuite")) for f in sys.argv[1:]];
+          ET.ElementTree(r).write("junit.xml")' junit-workflow.xml junit-app.xml
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
@@ -201,11 +213,11 @@ jobs:
           path: out/
           retention-days: 30
 
-  # Single required check aggregating everything above (skipped or cancelled = fail).
-  security-gate:
-    name: security checks
+  # Required check for the SDLC workflow: tests and verify both succeeded (skipped or cancelled = fail).
+  stage-gate:
+    name: stage gate
     if: always()
-    needs: [tests, verify, scanners]
+    needs: [tests, verify]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions: {}

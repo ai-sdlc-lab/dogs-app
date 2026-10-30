@@ -1,7 +1,7 @@
 """Body for the final PR (feature branch -> main): what the owner must look at (SPEC-0001 M-19, M-23).
 
 Lists every changed path the owner reviews (CODEOWNERS entries plus Makefile, tests/process/, scanner
-configs), renames as delete + add, changes to the verifier pin or the security-gate job, and every
+configs), renames as delete + add, changes to the verifier pin or the stage-gate job, and every
 exception a review report used. The owner also checks `git diff --stat` on the same paths, because this
 script is introduced by the same PR in change 0001.
 
@@ -62,8 +62,8 @@ def body(paths: list[str], root: Path = ROOT, diff_text: str = "") -> str:
     lines += [f"- `{inert(p)}`" for p in prot] or ["- none"]
     if "verify.yml@" in diff_text:
         lines += ["", "**A verifier pin (`verify.yml@<sha>`) changes in this PR.**"]
-    if "security-gate" in diff_text:
-        lines += ["", "**The `security-gate` job changes in this PR.**"]
+    if "stage-gate" in diff_text:
+        lines += ["", "**The `stage-gate` job changes in this PR.**"]
     used = []
     for p in paths:
         if "/reviews/" in p and p.endswith(".json") and (root / p).is_file():

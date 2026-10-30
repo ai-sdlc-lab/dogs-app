@@ -15,7 +15,7 @@ test: test-api test-process
 test-api:
 	cd api && $(PY) -m pytest -q
 
-# Stage-loop tests (change 0001): hook, settings, agents, workflows, scripts. Needs .appsec-baseline/ (scripts/appsec_checkout.py).
+# SDLC workflow tests (change 0001): hook, settings, agents, workflows, scripts. Needs .appsec-baseline/ (scripts/appsec_checkout.py).
 test-process:
 	$(PY) -I -B -m pytest -q -p no:cacheprovider tests/process
 

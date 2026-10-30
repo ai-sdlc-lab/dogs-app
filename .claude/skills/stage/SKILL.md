@@ -3,7 +3,7 @@ name: stage
 description: "Runs a change through intent → spec → plan → code with author and reviewer subagents, the deterministic gate and the fix loop (SPEC-0001). Use when the owner says /stage, \"new change\", or \"next stage\"."
 ---
 
-# Stage loop
+# SDLC workflow
 
 Process: `docs/pipeline.md` → "Agreed process" and change 0001 (`docs/specs/0001-local-stage-loop/`). Follow these steps exactly; scripts decide, agents only propose.
 
