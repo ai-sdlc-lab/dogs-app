@@ -29,7 +29,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: ai-sdlc-lab/appsec-baseline
-          ref: 0d09a9ae15d59bc5ab850fe32c286de243f85f96 # = appsec-baseline.lock
+          ref: 0c20e203c2f02eaee5cd0ca39ae8ce94aa02dfaa # = appsec-baseline.lock
           path: .appsec-baseline
           persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -62,7 +62,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    uses: ai-sdlc-lab/appsec-baseline/.github/workflows/verify.yml@0d09a9ae15d59bc5ab850fe32c286de243f85f96 # = appsec-baseline.lock
+    uses: ai-sdlc-lab/appsec-baseline/.github/workflows/verify.yml@0c20e203c2f02eaee5cd0ca39ae8ce94aa02dfaa # = appsec-baseline.lock
 
   scanners:
     name: security scanners
@@ -90,7 +90,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: ai-sdlc-lab/appsec-baseline
-          ref: 0d09a9ae15d59bc5ab850fe32c286de243f85f96 # = appsec-baseline.lock (test_workflow_pins_match_lock)
+          ref: 0c20e203c2f02eaee5cd0ca39ae8ce94aa02dfaa # = appsec-baseline.lock (test_workflow_pins_match_lock)
           path: .appsec-baseline
           persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -143,7 +143,12 @@ jobs:
           fi
           docker run --rm -v "$PWD:/src" -w /src "$SEMGREP_IMAGE" \
             semgrep scan --config p/default --config .appsec-baseline/semgrep/tls.yml --metrics=off --exclude .appsec-baseline --sarif --output out/semgrep.sarif || true
-          trivy config --quiet --ignorefile .appsec-baseline/exceptions/trivyignore --format sarif --output out/trivy.sarif infra/ || true
+          # Trivy exceptions (security/trivyignore) come from the base branch: a change can't silence its own scan.
+          # Absent in base (only the PR that adds the file): the PR's copy, like the verifier's BOOTSTRAP mode.
+          if git cat-file -e "$BASE_SHA:security/trivyignore" 2>/dev/null; then git show "$BASE_SHA:security/trivyignore" > "$RUNNER_TEMP/trivyignore" || exit 1
+          elif [[ -f security/trivyignore && ! -L security/trivyignore ]]; then cp security/trivyignore "$RUNNER_TEMP/trivyignore"
+          else : > "$RUNNER_TEMP/trivyignore"; fi
+          trivy config --quiet --ignorefile "$RUNNER_TEMP/trivyignore" --format sarif --output out/trivy.sarif infra/ || true
           # linter configs come from the base branch, never from the PR (a PR could relax them)
           if git cat-file -e "$BASE_SHA:.github/zizmor.yml" 2>/dev/null; then git show "$BASE_SHA:.github/zizmor.yml" > "$RUNNER_TEMP/zizmor.yml" || exit 1
           elif git cat-file -e "$BASE_SHA" ; then printf 'rules: {}\n' > "$RUNNER_TEMP/zizmor.yml" # absent in base: tool defaults

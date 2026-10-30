@@ -67,7 +67,24 @@
       "Bash(git *)",
       "Bash(gh *)",
       "Bash(python3 *)",
-      "Bash(make *)"
+      "Bash(make *)",
+      "Bash(.venv/bin/python3 *)",
+      "Bash(mkdir *)",
+      "Bash(ls*)",
+      "Bash(cat *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(wc *)",
+      "Bash(find *)",
+      "Bash(diff *)",
+      "Bash(sort *)",
+      "Bash(grep *)",
+      "Bash(echo *)",
+      "Bash(pwd)",
+      "Bash(cp *)",
+      "Bash(mv *)",
+      "Bash(rm *)",
+      "Bash(touch *)"
     ]
   }
 }

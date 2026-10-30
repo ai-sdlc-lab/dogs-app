@@ -1,0 +1,7 @@
+# dogs-app scanner exceptions for Trivy (moved from appsec-baseline 2026-10-30).
+# Each entry names the requirement and the lab exception it implements; changes are listed in the final PR.
+
+# SR-023 lab exception: AWS-managed keys (SSE-S3 / service default) instead of
+# customer-managed KMS keys, cost constraint (lab-admin BASELINE).
+AWS-0132
+AWS-0017

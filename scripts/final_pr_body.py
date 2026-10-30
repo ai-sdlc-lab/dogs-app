@@ -1,6 +1,7 @@
 """Body for the final PR (feature branch -> main): what the owner must look at (SPEC-0001 M-19, M-23).
 
-Lists every changed path the owner reviews (CODEOWNERS entries plus Makefile, tests/process/, scanner
+First what the owner decides at this merge: open high/critical findings, exceptions the agents added to
+security/exceptions.yml, and the session's decisions (docs/specs/<NNNN>-<slug>/decisions.md). Then every changed path the owner reviews (CODEOWNERS entries plus Makefile, tests/process/, scanner
 configs), renames as delete + add, changes to the verifier pin or the stage-gate job, and every
 exception a review report used. The owner also checks `git diff --stat` on the same paths, because this
 script is introduced by the same PR in change 0001.
@@ -55,10 +56,52 @@ def changed(base: str) -> list[str]:
     return [p.decode("utf-8", "replace") for p in out.split(b"\0") if p]
 
 
-def body(paths: list[str], root: Path = ROOT, diff_text: str = "") -> str:
+EXCEPTIONS = "security/exceptions.yml"
+
+
+def exception_ids(text: str) -> set[str]:
+    return set(re.findall(r"^- id: (EXC-[0-9]{3})\s*$", text, re.M))
+
+
+def decide_first(paths: list[str], root: Path, base_exceptions: str) -> list[str]:
+    open_items = []
+    for p in paths:
+        if "/reviews/" in p and p.endswith(".json") and (root / p).is_file():
+            try:
+                doc = json.loads((root / p).read_text())
+                open_items += [
+                    f"{inert(doc.get('reviewer'))} {inert(f.get('id'))} [{inert(f.get('severity'))}] {inert(f.get('sr_ref'))} "
+                    f"{inert(f.get('file'))}: {inert(f.get('evidence', ''))}"
+                    for f in doc.get("findings", [])
+                    if f.get("status") == "open"
+                ]
+            except (ValueError, AttributeError, TypeError):
+                open_items.append(f"malformed report: {inert(p)}")
+    lines = ["## Decide at this merge", "", "**Open findings (high/critical, not fixed in 3 rounds)**", ""]
+    lines += [f"- {x}" for x in open_items] or ["- none"]
+    ex = root / EXCEPTIONS
+    new = sorted(exception_ids(ex.read_text()) - exception_ids(base_exceptions)) if ex.is_file() else []
+    lines += ["", f"**Exceptions added in this PR (`{EXCEPTIONS}`)**", ""]
+    if new:
+        blocks = ex.read_text().split("\n- ")
+        for b in blocks:
+            if any(re.match(rf"(- )?id: {i}\s", b) for i in new):
+                lines += [f"- {inert(' '.join(b.split()))}"]
+    else:
+        lines += ["- none"]
+    lines += ["", "**Decisions the session took without asking**", ""]
+    dec = [p for p in paths if re.fullmatch(r"docs/specs/[0-9]{4}-[a-z0-9-]+/decisions\.md", p) and (root / p).is_file()]
+    for p in dec:
+        lines += [f"- {inert(x.strip())}" for x in (root / p).read_text().splitlines()[:100] if x.strip() and not x.startswith("#")]
+    if not dec:
+        lines += ["- none recorded"]
+    return lines + [""]
+
+
+def body(paths: list[str], root: Path = ROOT, diff_text: str = "", base_exceptions: str = "") -> str:
     pats = protected_patterns(root)
     prot = [p for p in paths if is_protected(p, pats)]
-    lines = ["## Owner review: protected changes", ""]
+    lines = decide_first(paths, root, base_exceptions) + ["## Owner review: protected changes", ""]
     lines += [f"- `{inert(p)}`" for p in prot] or ["- none"]
     if "verify.yml@" in diff_text:
         lines += ["", "**A verifier pin (`verify.yml@<sha>`) changes in this PR.**"]
@@ -88,4 +131,7 @@ if __name__ == "__main__":
         text=True,
         check=True,
     ).stdout
-    print(body(changed(base), diff_text=diff))
+    old = subprocess.run(
+        ["git", "-C", str(ROOT), "show", f"{base}:{EXCEPTIONS}"], capture_output=True, text=True, check=False
+    ).stdout
+    print(body(changed(base), diff_text=diff, base_exceptions=old))
