@@ -172,3 +172,9 @@ def test_settings_deny_admin_gh_commands():
     deny = SETTINGS["permissions"]["deny"]
     for rule in ("Bash(gh api*)", "Bash(gh repo delete*)", "Bash(gh repo edit*)", "Bash(gh secret*)", "Bash(gh variable*)", "Bash(gh auth*)", "Bash(gh workflow*)"):
         assert rule in deny, rule
+
+
+def test_settings_allow_the_stage_skill_commands():
+    allow = SETTINGS["permissions"]["allow"]
+    for rule in ("Bash(.venv/bin/python3 *)", "Bash(git *)", "Bash(gh *)", "Bash(make *)", "Bash(mkdir *)"):
+        assert rule in allow, rule

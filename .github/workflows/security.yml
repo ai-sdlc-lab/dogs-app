@@ -29,7 +29,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: ai-sdlc-lab/appsec-baseline
-          ref: 0d09a9ae15d59bc5ab850fe32c286de243f85f96 # = appsec-baseline.lock
+          ref: 0c20e203c2f02eaee5cd0ca39ae8ce94aa02dfaa # = appsec-baseline.lock
           path: .appsec-baseline
           persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -62,7 +62,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    uses: ai-sdlc-lab/appsec-baseline/.github/workflows/verify.yml@0d09a9ae15d59bc5ab850fe32c286de243f85f96 # = appsec-baseline.lock
+    uses: ai-sdlc-lab/appsec-baseline/.github/workflows/verify.yml@0c20e203c2f02eaee5cd0ca39ae8ce94aa02dfaa # = appsec-baseline.lock
 
   scanners:
     name: security scanners
@@ -90,7 +90,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: ai-sdlc-lab/appsec-baseline
-          ref: 0d09a9ae15d59bc5ab850fe32c286de243f85f96 # = appsec-baseline.lock (test_workflow_pins_match_lock)
+          ref: 0c20e203c2f02eaee5cd0ca39ae8ce94aa02dfaa # = appsec-baseline.lock (test_workflow_pins_match_lock)
           path: .appsec-baseline
           persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
