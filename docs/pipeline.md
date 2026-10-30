@@ -25,7 +25,7 @@ How every change is built. Start a session in this repo with `claude --plugin-di
 | 3 plan | `plan.md` (files, order, tasks, named tests) | template structure | script |
 | | | fits `architecture.md` + ADRs | LLM: architecture-conformance |
 | | | every SR and mitigation has a task and a named test | script (ID cross-check) + LLM: security architect |
-| 4 code | code + tests (`plan.md` updated if the work departs from it) | lint, tests, build, kind deploy | CI `ci` |
+| 4 code | code + tests (`plan.md` updated if the work departs from it) | lint, tests, build, kind deploy | CI `build-and-test` |
 | | | named tests exist and pass; changed files are in the plan | scripts |
 | | | mitigations and SRs implemented; changed lines vs all applicable SRs (when a path outside `docs/`, `.github/`, `infra/` changed) | LLM: security code reviewer |
 | | | workflows / IaC (when changed) | LLM: workflow/IaC reviewer + zizmor, actionlint, Trivy |
@@ -55,10 +55,10 @@ Rounds: round 1 runs every reviewer that applies. From round 2 only the reviewer
 | Workflow | Starts when | Jobs |
 |---|---|---|
 | `ci.yml` | every PR | api (ruff, pytest), web (build), infra (fmt, validate, tflint), kind deploy + health |
-| `security.yml` | every PR | `tests` (stage-loop tests, JUnit), `security/verify` (appsec-baseline `verify.yml` at the lock SHA: reports, hashes, statuses, exceptions, structure, cross-check, plan drift, named tests), `scanners` (docs-only diff: gitleaks; code diff: Semgrep incl. SR-022 rules, OSV-Scanner, gitleaks, Trivy, zizmor, actionlint), `security-gate` (all of them) |
+| `security.yml` | every PR | `stage-process tests` (JUnit), `stage reviews / verify` (appsec-baseline `verify.yml` at the lock SHA: reports, hashes, statuses, exceptions, structure, cross-check, plan drift, named tests), `security scanners` (docs-only diff: gitleaks; code diff: Semgrep incl. SR-022 rules, OSV-Scanner, gitleaks, Trivy, zizmor, actionlint), `security checks` (all of them) |
 | `deploy.yml` | merge to `main` | build → ZAP baseline in kind → deploy to AWS (OIDC, environment `dev`). ZAP alerts don't stop the deploy until change 0002 (exception EXC-001, expires 2026-12-31) |
 
-Required on `main`: `ci`, `security/verify / verify`, `security-gate`.
+Required on `main`: `build-and-test`, `stage reviews / verify`, `security checks`.
 
 ## Re-enabling the CI reviewers
 
