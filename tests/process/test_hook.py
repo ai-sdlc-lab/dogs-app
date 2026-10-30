@@ -158,3 +158,10 @@ def test_hook_redacts_secrets_in_prompts(project):
     hook(root, tool="Bash", command="GH_TOKEN=ghp_secretvalue gh pr merge 5")
     detail = json.loads((root / ".claude/stage-log.jsonl").read_text().splitlines()[-1])["detail"]
     assert "ghp_secretvalue" not in detail
+
+
+def test_hook_main_session_writes_scratch_in_repo(project):
+    """The skill keeps reviewer output in .stage-tmp/ (git-ignored), never outside the repo."""
+    root = project()
+    for mode in ("default", "acceptEdits"):
+        assert hook(root, path=".stage-tmp/spec-security-requirements-auditor.json", extra={"permission_mode": mode}) == "allow"

@@ -13,6 +13,7 @@ Process: `docs/pipeline.md` → "Agreed process" and change 0001 (`docs/specs/00
 - **Owner decides security findings:** any finding the gate escalates goes to the owner: fix, or accept as an exception. Never reword a finding away. Never set `accepted-risk` yourself.
 - **Never** run `make apply`, `terraform apply`, `aws` commands, or edit `.claude/`, `stages.yml`, `appsec-baseline.lock` without the owner approving that exact edit.
 - Python scripts always run as `python3 -I -B`.
+- **Shell:** one command per Bash call: no `&&`, `;` or `|` chains, no `2>/dev/null`. Write files with the Write tool, never with shell redirects or heredocs. Scratch files go in `.stage-tmp/` (git-ignored), never outside the repo. The hook judges a whole command line, so a chained read of a protected path next to an unrelated write is blocked.
 
 ## 0. Start or continue
 1. `/stage intent <idea>` (or `/stage intent <slug>: <idea>`): change number = highest `docs/specs/NNNN-*` + 1; slug from the idea (lowercase words joined by `-`, 3–40 characters, at most 5 words).
@@ -29,7 +30,8 @@ Read `stages.yml` for the stage's template, author and reviewers. Which reviewer
    - **Which:** intent, spec, plan: every reviewer in `reviewers`. Code: each reviewer in `conditional` whose regex matches a changed path outside `docs/` (`git diff --name-only feature/<NNNN>-<slug>...HEAD`); that set of paths is the reviewer's scope.
    - **Round 1:** all of them. **Round 2+:** only reviewers whose last result was not `allow`, plus any code reviewer whose regex newly matches a changed path. A reviewer that passed is not run again.
    - **Gives:** intent, spec, plan: the artifact, the change's earlier artifacts, the requirements path, owner decisions so far. Code: `git diff feature/<NNNN>-<slug>...HEAD -- <its paths>`, plus PLAN, TRACE, THREAT and the requirements path; never the whole repo. Round 2+: its open findings by ID and the diff since its last run (`git diff <commit it reviewed>..HEAD -- <its paths>`, or the artifact for intent/spec/plan).
-4. Save each reviewer's raw JSON to `$TMPDIR`, then `python3 -I -B .appsec-baseline/stage/validate.py output <file>` (redacts; a non-zero exit escalates).
+   - **Format:** tell every reviewer to read `.appsec-baseline/schemas/findings.schema.json` and answer with exactly one JSON object that matches it (no other keys, no text around it).
+4. Save each reviewer's raw JSON with the Write tool to `.stage-tmp/<stage>-<reviewer>.json` (git-ignored), then `python3 -I -B .appsec-baseline/stage/validate.py output <file>` (redacts; a non-zero exit escalates).
 5. **Gate:** `python3 -I -B .appsec-baseline/gate/security_gate.py --repo dogs-app --reviewer <name>=<file> ...`. Exit 0 allow, 1 block, 3 questions, 2 escalate.
    - **block:** findings (IDs and recommendations only) to the author; next round.
    - **questions:** ask the owner, in plain words, what is missing and why it matters; put the answer into the artifact; next round.
@@ -49,4 +51,4 @@ Read `stages.yml` for the stage's template, author and reviewers. Which reviewer
 5. Next stage, from the updated feature branch.
 
 ## 3. Finish
-After the code stage: `python3 -I -B scripts/final_pr_body.py main > $TMPDIR/body.md`, then `gh pr create --base main --head feature/<NNNN>-<slug> --body-file $TMPDIR/body.md`. Tell the owner the PR is ready and what to check (`git diff --stat main...feature/<NNNN>-<slug> -- .claude .github CODEOWNERS stages.yml appsec-baseline.lock scripts`). **Stop.** Only the owner merges into `main`.
+After the code stage: `python3 -I -B scripts/final_pr_body.py main > .stage-tmp/body.md`, then `gh pr create --base main --head feature/<NNNN>-<slug> --body-file .stage-tmp/body.md`. Tell the owner the PR is ready and what to check (`git diff --stat main...feature/<NNNN>-<slug> -- .claude .github CODEOWNERS stages.yml appsec-baseline.lock scripts`). **Stop.** Only the owner merges into `main`.
