@@ -16,7 +16,7 @@ concurrency:
 jobs:
   # Read-only test run that produces the JUnit the verifier checks named tests against (M-07).
   tests:
-    name: tests
+    name: stage-process tests
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
@@ -44,7 +44,7 @@ jobs:
           retention-days: 7
 
   verify:
-    name: security/verify
+    name: stage reviews
     needs: [tests]
     if: always()
     permissions:
@@ -53,7 +53,7 @@ jobs:
     uses: ai-sdlc-lab/appsec-baseline/.github/workflows/verify.yml@0d09a9ae15d59bc5ab850fe32c286de243f85f96 # = appsec-baseline.lock
 
   scanners:
-    name: scanners
+    name: security scanners
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
@@ -203,7 +203,7 @@ jobs:
 
   # Single required check aggregating everything above (skipped or cancelled = fail).
   security-gate:
-    name: security-gate
+    name: security checks
     if: always()
     needs: [tests, verify, scanners]
     runs-on: ubuntu-24.04

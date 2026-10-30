@@ -17,6 +17,7 @@ env:
 
 jobs:
   api:
+    name: "api: lint + unit tests"
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
@@ -35,6 +36,7 @@ jobs:
       - run: make test-api PY=python # stage-loop and hook tests run in security.yml job `tests`
 
   web:
+    name: "web: build"
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
@@ -50,6 +52,7 @@ jobs:
         run: npm ci && npm run build # build = tsc --noEmit + vite build
 
   infra:
+    name: "terraform: validate"
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
@@ -76,6 +79,7 @@ jobs:
       - run: tflint --chdir=infra
 
   kind:
+    name: "deploy test (kind)"
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
@@ -107,6 +111,7 @@ jobs:
 
   # Single check name for the ruleset (Phase 4).
   ci:
+    name: build-and-test
     if: always()
     needs: [api, web, infra, kind]
     runs-on: ubuntu-24.04
