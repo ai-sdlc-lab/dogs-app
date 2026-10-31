@@ -104,7 +104,7 @@ jobs:
         run: |
           set -euo pipefail
           # Fail closed: a report without a scanned site means ZAP saw nothing.
-          jq -e '.site | length > 0' zap/zap-root.json zap/zap-health.json > /dev/null
+          for f in zap/zap-root.json zap/zap-health.json; do jq -e '.site | length > 0' "$f" > /dev/null; done
           # 10019 Content-Type, 10020 anti-clickjacking, 10021 X-Content-Type-Options, 10035 HSTS,
           # 10038 CSP not set, 10055 CSP. Other alerts stay in the report only (SPEC D-4).
           hits=$(jq -rs '[.[].site[]?.alerts[]? | .pluginid | tostring | select(IN("10019", "10020", "10021", "10035", "10038", "10055"))] | unique | join(" ")' zap/zap-root.json zap/zap-health.json)
