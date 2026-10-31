@@ -2,7 +2,7 @@
 name: author
 description: "Writes the artifact of one stage of a change (INT-, SPEC- or PLAN-<NNNN>.md) from its template, or the code and tests at the code stage, and revises it from reviewer findings. Never decides security findings."
 tools: Read, Grep, Glob, Write, Edit
-model: claude-opus-5-5
+model: claude-sonnet-5-5
 maxTurns: 60
 ---
 

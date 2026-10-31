@@ -45,7 +45,7 @@ def test_settings_deny_reads_state_and_key_files():
 # --- agents (D-04) -----------------------------------------------------------------------------
 
 SPEC_TABLE = {
-    "author": ("claude-opus-5-5", 60, {"Read", "Grep", "Glob", "Write", "Edit"}),
+    "author": ("claude-sonnet-5-5", 60, {"Read", "Grep", "Glob", "Write", "Edit"}),
     "intent-completeness": ("claude-haiku-4-5-20251001", 20, {"Read", "Grep", "Glob"}),
     "spec-completeness": ("claude-haiku-4-5-20251001", 20, {"Read", "Grep", "Glob"}),
     "architecture-conformance": ("claude-sonnet-5-5", 30, {"Read", "Grep", "Glob"}),
@@ -64,7 +64,7 @@ def test_agents_match_spec_table():
         fm = frontmatter(p)
         assert (fm["model"], fm["maxTurns"], {t.strip() for t in fm["tools"].split(",")}) == (model, turns, tools), name
         assert "Untrusted input rule" in p.read_text()
-    assert SETTINGS["model"] == "claude-sonnet-5-5"  # session on Sonnet; the author agent on Opus (2026-10-30)
+    assert SETTINGS["model"] == "claude-sonnet-5-5"  # session and author on Sonnet (2026-11-01: Opus was 52% of the 0002 run)
 
 
 # --- workflows (D-07, D-08) ------------------------------------------------------------------
