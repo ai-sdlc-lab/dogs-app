@@ -146,7 +146,9 @@ def test_final_pr_body_starts_with_what_the_owner_decides(tmp_path):
     (ch / "reviews").mkdir(parents=True)
     (ch / "reviews/CODE-0007.security-code-reviewer.json").write_text(
         json.dumps({"reviewer": "security-code-reviewer", "findings": [
-            {"id": "SCR-002", "severity": "high", "sr_ref": "SR-005", "file": "api/app/main.py", "evidence": "stack trace in 500", "status": "open"}]})
+            {"id": "SCR-002", "severity": "high", "sr_ref": "SR-005", "file": "api/app/main.py", "evidence": "stack trace in 500", "status": "open"},
+            {"id": "SCR-003", "severity": "high", "sr_ref": "SR-006", "file": "api/app/s3.py", "evidence": "no timeouts", "status": "deferred",
+             "pre_existing": True, "issue": 31}]})
     )
     (ch / "decisions.md").write_text("# Decisions\n- spec: no Cache-Control (not required by SR-004)\n")
     (tmp_path / "security").mkdir()
@@ -158,3 +160,4 @@ def test_final_pr_body_starts_with_what_the_owner_decides(tmp_path):
     top = body.split("## Owner review")[0]
     assert "SCR-002 [high] SR-005" in top and "no Cache-Control" in top
     assert "EXC-002" in top and "EXC-001" not in top
+    assert "#31 SR-006 [high]" in top.split("Old debt")[1]

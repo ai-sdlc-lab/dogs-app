@@ -4,14 +4,14 @@ A plain-language guide to the automation around dogs-app: what runs, when, with 
 
 ## The SDLC workflow (change 0001)
 
-How every change is built. Start a session in this repo with `claude --plugin-dir .appsec-baseline --permission-mode acceptEdits` and say `/stage intent <idea>`. Models: the session on Sonnet (it runs scripts and starts subagents), the author on Opus, reviewers on Sonnet or Haiku. Permissions: `git`, `gh`, `python3` and `make` are allowed; `gh api`, `gh repo delete|edit`, `gh secret`, `gh variable`, `gh auth`, `gh workflow`, apply/destroy and `aws` are denied; the hook denies merges and pushes into `main` and protected-file edits; the steps are in `.claude/skills/stage/SKILL.md`.
+How every change is built. Start a session in this repo with `claude --plugin-dir .appsec-baseline --permission-mode acceptEdits` and say `/stage <idea>`. Models: the session on Sonnet (it runs scripts and starts subagents), the author on Opus, reviewers on Sonnet or Haiku. Permissions: `git`, `gh`, `python3` and `make` are allowed; `gh api`, `gh repo delete|edit`, `gh secret`, `gh variable`, `gh auth`, `gh workflow`, apply/destroy and `aws` are denied; the hook denies merges and pushes into `main` and protected-file edits; the steps are in `.claude/skills/stage/SKILL.md`.
 
 - One feature branch per change (`feature/<NNNN>-<slug>`). Agents work there autonomously: each stage (one md file, or the code) is a PR from `stage/<NNNN>-<stage>` into the feature branch, merged by the session once the stage's checks pass. The owner is asked only for product facts the agents can't know and for decisions on security-requirement findings.
 - **The only human gate is the merge to `main`**, which deploys: one PR from the feature branch to `main` after implementation and validation, with required checks and the owner's approval. Agents never merge into `main`.
 - All LLM work (authoring and reviews) runs as subagents in the owner's local Claude Code session. **CI makes no LLM calls**: it runs scripts and scanners only.
 - Security findings are fixed by the agents (up to 3 rounds). Still open after that: a low or medium one gets an exception in this repo's `security/exceptions.yml` (`approved_by: agent`, at most 90 days); a high or critical one stays open and blocks only the merge to `main`. The final PR lists open findings, new exceptions and the session's decisions (`decisions.md`) first: the owner decides at that merge. After the intent stage the session never asks the owner anything. Exceptions are per repository; appsec-baseline holds only the requirements and the exception format.
 - PR comments only for findings that need the owner (issue #9); passing results stay in logs and `reviews/`. No comment = nothing to report. Findings on `main`: one GitHub issue per finding (label `security-finding`).
-- Old code is not assessed up front: stage 4 reviews the changed lines against all applicable SRs.
+- Old code is not assessed up front: stage 4 reviews the changed lines against all applicable SRs. A gap a reviewer finds in existing code the change doesn't alter is old debt: it goes to a GitHub issue (`security-finding: <SR> …`) and never blocks the change; the final PR lists it.
 
 | Stage | Produces | Evaluated | How |
 |---|---|---|---|

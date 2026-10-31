@@ -193,11 +193,14 @@ SKILL_COMMANDS = [  # every command the stage skill runs, one per Bash call (kee
     "gh pr create --base feature/0007-demo --title 'SPEC-0007' --body 'spec stage'",
     "gh pr checks --watch",
     "gh run view 123 --log-failed",
+    'gh issue list --state open --search "security-finding: SR-005 in:title"',
+    'gh issue create --title "security-finding: SR-005 error body format" --body-file .stage-tmp/issue-AUD-002.md',
     f"{PY} scripts/final_pr_body.py main > .stage-tmp/body.md",
     "gh pr create --base main --head feature/0007-demo --body-file .stage-tmp/body.md",
 ]
 SESSION_WRITES = [
     ".stage-tmp/spec-security-architect.json",
+    ".stage-tmp/issue-AUD-002.md",
     "security/exceptions.yml",
     "docs/specs/0007-demo/decisions.md",
     "docs/specs/0007-demo/reviews/SPEC-0007.security-architect.json",
