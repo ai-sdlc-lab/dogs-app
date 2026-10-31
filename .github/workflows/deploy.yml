@@ -88,9 +88,9 @@ jobs:
           set -uo pipefail
           mkdir -p zap && chmod 777 zap
           docker run --rm --network host -v "$PWD/zap:/zap/wrk:rw" "$ZAP_IMAGE" \
-            zap-baseline.py -t http://127.0.0.1:8080/ -J zap-root.json -I
+            zap-baseline.py -t http://127.0.0.1:8080/ -J zap-root.json -I || exit 1
           docker run --rm --network host -v "$PWD/zap:/zap/wrk:rw" "$ZAP_IMAGE" \
-            zap-baseline.py -t http://127.0.0.1:8080/api/health -J zap-health.json -I
+            zap-baseline.py -t http://127.0.0.1:8080/api/health -J zap-health.json -I || exit 1
           test -s zap/zap-root.json && test -s zap/zap-health.json
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
@@ -103,6 +103,8 @@ jobs:
       - name: ZAP gate (SR-004 header rules stop the deploy)
         run: |
           set -euo pipefail
+          # Fail closed: a report without a scanned site means ZAP saw nothing.
+          jq -e '.site | length > 0' zap/zap-root.json zap/zap-health.json > /dev/null
           # 10019 Content-Type, 10020 anti-clickjacking, 10021 X-Content-Type-Options, 10035 HSTS,
           # 10038 CSP not set, 10055 CSP. Other alerts stay in the report only (SPEC D-4).
           hits=$(jq -rs '[.[].site[]?.alerts[]? | .pluginid | tostring | select(IN("10019", "10020", "10021", "10035", "10038", "10055"))] | unique | join(" ")' zap/zap-root.json zap/zap-health.json)
@@ -205,5 +207,6 @@ jobs:
           echo "image host: $img_host"
           [ "$img_host" = "$host" ] || { echo "::error::presigned URL host differs from the CSP image host"; exit 1; }
           IMG_URL=$(jq -r '.[0].url' <<<"$dogs")
+          echo "::add-mask::$IMG_URL"
           curl -fsS -o /dev/null "$IMG_URL" 2>/dev/null || { echo "::error::presigned image fetch failed"; exit 1; }
           echo "### Deployed: $url" >> "$GITHUB_STEP_SUMMARY"

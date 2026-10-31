@@ -88,6 +88,8 @@ def test_deploy_logs_no_presigned_urls():
         text = run_text(jobs[name])
         assert "X-Amz-" not in text and "set -x" not in text, name
         for echoed in ECHOED.findall(text):
+            if echoed == '"::add-mask::$IMG_URL"':  # masking registers the secret, it does not print it
+                continue
             for leak in ("$dogs", "$IMG_URL", ".url"):
                 assert leak not in echoed, f"{name}: echo {echoed}"
         summary = [line.strip() for line in text.splitlines() if "GITHUB_STEP_SUMMARY" in line]
@@ -95,6 +97,7 @@ def test_deploy_logs_no_presigned_urls():
     smoke = step(jobs["deploy"], "Smoke test")["run"]
     assert all("dogs=$(curl" in line for line in smoke.splitlines() if "api/dogs" in line)
     assert "IMG_URL=$(jq -r '.[0].url' <<<\"$dogs\")" in smoke
+    assert 'echo "::add-mask::$IMG_URL"' in smoke  # IAC-002: the presigned URL is masked in logs
     assert 'curl -fsS -o /dev/null "$IMG_URL" 2>/dev/null ||' in smoke
     assert 'echo "image host: $img_host"' in smoke
 
