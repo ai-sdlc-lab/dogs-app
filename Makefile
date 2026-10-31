@@ -3,17 +3,21 @@ BUCKET := sdlc-lab-app-dogs-dev-992382408037
 PY ?= $(if $(wildcard .venv/bin/python),$(CURDIR)/.venv/bin/python,python3.14)  # make venv once
 TF := terraform -chdir=infra
 
-.PHONY: venv test test-api test-process lint build plan apply destroy seed run-api
+.PHONY: venv test test-api test-process test-web lint build plan apply destroy seed run-api
 
 venv:
 	python3.14 -m venv .venv
 	.venv/bin/pip install -q --require-hashes -r api/requirements.txt -r api/requirements-dev.txt
 	.venv/bin/pip install -q --require-hashes -r tests/process/requirements.txt
 
-test: test-api test-process
+test: test-api test-process test-web
 
 test-api:
 	cd api && $(PY) -m pytest -q
+
+# Frontend tests (change 0002): built-in node:test, no dependency; Node >= 22.18 (type stripping).
+test-web:
+	npm --prefix web test
 
 # SDLC workflow tests (change 0001): hook, settings, agents, workflows, scripts. Needs .appsec-baseline/ (scripts/appsec_checkout.py).
 test-process:
