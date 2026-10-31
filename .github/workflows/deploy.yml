@@ -1,7 +1,7 @@
 name: deploy
 
-# main → build → DAST (ZAP on the release in kind) → deploy. No AI in CI (change 0001).
-# Deploy waits for build and the ZAP baseline (dast); ZAP alerts don't stop it until change 0002 (EXC-001).
+# main → build → DAST (ZAP on / and /api/health of the release in kind) → deploy → smoke test. No AI in CI (change 0001).
+# Any ZAP alert from an SR-004 header rule stops the deploy (change 0002); other alerts stay in the report.
 
 on:
   push:
@@ -41,6 +41,7 @@ jobs:
           retention-days: 7
 
   dast:
+    needs: [build] # scans the same web build that goes into the Lambda zip
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
@@ -55,6 +56,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Use the tested build
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: lambda-zip
+          path: build
       - name: Install kind and kubectl (pinned, checksum-verified)
         run: |
           set -euo pipefail
@@ -64,31 +70,49 @@ jobs:
           curl -fsSLo kubectl "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
           echo "${KUBECTL_SHA256}  kubectl" | sha256sum -c -
           sudo install kind kubectl /usr/local/bin/
-      - name: Deploy the release container to kind
+      - name: Deploy the release container (with the zip's web build) to kind
         run: |
           set -euo pipefail
           docker build -t dogs-api:ci api
+          # Same web build as the Lambda zip, laid over the image; only the unzipped web/ is the build context.
+          unzip -q build/lambda.zip 'web/*' -d "$RUNNER_TEMP/rel"
+          printf 'FROM dogs-api:ci\nCOPY . /srv/web\n' | docker build -t dogs-api:ci -f - "$RUNNER_TEMP/rel/web"
           kind create cluster --wait 120s
           kind load docker-image dogs-api:ci
           kubectl apply -f k8s/
           kubectl rollout status deploy/dogs-api --timeout=120s
           kubectl port-forward svc/dogs-api 8080:80 >/dev/null 2>&1 &
           for _ in $(seq 1 15); do curl -fsS localhost:8080/api/health && break; sleep 2; done
-      - name: ZAP baseline (passive scan)
+      - name: ZAP baseline (passive scan of / and /api/health)
         run: |
           set -uo pipefail
           mkdir -p zap && chmod 777 zap
           docker run --rm --network host -v "$PWD/zap:/zap/wrk:rw" "$ZAP_IMAGE" \
-            zap-baseline.py -t http://127.0.0.1:8080/api/health -J zap.json -I
-          test -s zap/zap.json
+            zap-baseline.py -t http://127.0.0.1:8080/ -J zap-root.json -I || exit 1
+          docker run --rm --network host -v "$PWD/zap:/zap/wrk:rw" "$ZAP_IMAGE" \
+            zap-baseline.py -t http://127.0.0.1:8080/api/health -J zap-health.json -I || exit 1
+          test -s zap/zap-root.json && test -s zap/zap-health.json
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
         with:
           name: zap-report
-          path: zap/zap.json
+          path: |
+            zap/zap-root.json
+            zap/zap-health.json
           retention-days: 30
+      - name: ZAP gate (SR-004 header rules stop the deploy)
+        run: |
+          set -euo pipefail
+          # Fail closed: a report without a scanned site means ZAP saw nothing.
+          for f in zap/zap-root.json zap/zap-health.json; do jq -e '.site | length > 0' "$f" > /dev/null; done
+          # 10019 Content-Type, 10020 anti-clickjacking, 10021 X-Content-Type-Options, 10035 HSTS,
+          # 10038 CSP not set, 10055 CSP. Other alerts stay in the report only (SPEC D-4).
+          hits=$(jq -rs '[.[].site[]?.alerts[]? | .pluginid | tostring | select(IN("10019", "10020", "10021", "10035", "10038", "10055"))] | unique | join(" ")' zap/zap-root.json zap/zap-health.json)
+          if [ -n "$hits" ]; then echo "::error::ZAP alerts from SR-004 header rules: $hits"; exit 1; fi
+          echo "ZAP: no alert from the SR-004 header rules"
 
   deploy:
-    needs: [build, dast] # ZAP runs before every deploy; its alerts don't stop it until change 0002 (EXC-001)
+    needs: [build, dast] # deploy only after the ZAP gate passed (SR-004)
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     environment: dev # only main may deploy here (lab-admin BL-09); the role trusts only this environment
@@ -149,13 +173,40 @@ jobs:
       - run: make apply
       - run: make seed
 
-      - name: Smoke test
+      - name: Smoke test (app, image host and SR-004 headers)
         run: |
           set -euo pipefail
           url=$(terraform -chdir=infra output -raw url)
-          curl -fsS "${url}api/health"
+          bucket=$(terraform -chdir=infra output -raw bucket)
+          host="${bucket}.s3.eu-north-1.amazonaws.com"
+          csp="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' https://${host}; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; object-src 'none'"
+          cd "$RUNNER_TEMP"
+          curl -fsS -D page.h -o page.html "$url"
+          grep -q '<title>Dogs</title>' page.html
+          curl -fsS -D health.h -o /dev/null "${url}api/health"
+          # Exactly one header line with exactly this value; only the header name is ever printed.
+          check() {
+            v=$({ grep -i "^$2:" "$1" || true; } | cut -d: -f2- | sed 's/^ *//' | tr -d '\r')
+            [ "$v" = "$3" ] || { echo "::error::$1: header $2 missing, repeated or wrong"; exit 1; }
+          }
+          for f in page.h health.h; do
+            check "$f" X-Content-Type-Options nosniff
+            check "$f" Strict-Transport-Security "max-age=31536000; includeSubDomains"
+            check "$f" Referrer-Policy no-referrer
+          done
+          if grep -qi "^content-security-policy:.*img-src 'self';" page.h; then echo "::error::fallback CSP (no image host)"; exit 1; fi
+          check page.h Content-Security-Policy "$csp"
+          check page.h Cross-Origin-Opener-Policy same-origin
+          if grep -qi '^access-control-' page.h health.h; then echo "::error::Access-Control-* header present"; exit 1; fi
           dogs=$(curl -fsS "${url}api/dogs")
-          n=$(jq length <<<"$dogs"); echo "dogs: $n"; [ "$n" -ge 1 ]
-          curl -fsS -o /dev/null "$(jq -r '.[0].url' <<<"$dogs")" # presigned image URL works
-          curl -fsS "$url" | grep -q '<title>Dogs</title>'
+          n=$(jq length <<<"$dogs")
+          echo "dogs: $n"
+          [ "$n" -ge 1 ]
+          # The CSP image host must be the host of the presigned URLs; only the host is printed.
+          img_host=$(jq -r '.[0].url | capture("^https://(?<h>[^/?#:@]+)[/?#]").h' <<<"$dogs")
+          echo "image host: $img_host"
+          [ "$img_host" = "$host" ] || { echo "::error::presigned URL host differs from the CSP image host"; exit 1; }
+          IMG_URL=$(jq -r '.[0].url' <<<"$dogs")
+          echo "::add-mask::$IMG_URL"
+          curl -fsS -o /dev/null "$IMG_URL" 2>/dev/null || { echo "::error::presigned image fetch failed"; exit 1; }
           echo "### Deployed: $url" >> "$GITHUB_STEP_SUMMARY"

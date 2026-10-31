@@ -1,0 +1,1 @@
+{"reviewer":"intent-completeness","stage":"intent","change":"0002","model":"claude-haiku-4-5-20251001","round":1,"appsec_sha":"0c20e203c2f02eaee5cd0ca39ae8ce94aa02dfaa","files":{"docs/specs/0002-security-headers/INT-0002.md":"121bf24e1b49a618d1041ae434854c77fe1e63c566d1ee8a9e0277b8636c8869"},"produced":{},"verdict":"allow","findings":[]}
