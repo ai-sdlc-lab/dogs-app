@@ -1,0 +1,1 @@
+{"reviewer":"architecture-conformance","stage":"plan","change":"0002","model":"claude-sonnet-5-5","round":3,"appsec_sha":"0c20e203c2f02eaee5cd0ca39ae8ce94aa02dfaa","files":{"docs/specs/0002-security-headers/PLAN-0002.md":"719cca5c2f739430659ca1b756c2d1b49ff9fd122d485655287283a735dfe434"},"produced":{},"verdict":"allow","findings":[]}

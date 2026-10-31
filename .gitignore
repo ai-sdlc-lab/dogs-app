@@ -2,6 +2,7 @@
 __pycache__/
 node_modules/
 web/dist/
+web/junit-web.xml
 build/
 .terraform/
 *.tfstate
