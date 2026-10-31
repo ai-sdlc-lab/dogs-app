@@ -1,4 +1,4 @@
-# Architecture (as built; process as of change 0001)
+# Architecture (as built; as of change 0002)
 
 ```
 browser ──HTTPS──> Lambda function URL (auth NONE, public, read-only)
@@ -8,6 +8,8 @@ browser ──HTTPS──> Lambda function URL (auth NONE, public, read-only)
                          └─ S3 sdlc-lab-app-dogs-dev-992382408037 (private, SSE-S3, TLS-only)
                               images under dogs/<breed>/, served as 15-minute presigned URLs
 ```
+
+One outermost ASGI wrapper sets the SR-004 security headers on every response the app produces (CSP image host from `DOGS_BUCKET`/`AWS_REGION`, fail closed); `web/src/render.ts` holds the page rendering and the image-URL check.
 
 ## Trust boundaries
 1. Internet → function URL: unauthenticated, any caller.
@@ -21,4 +23,4 @@ browser ──HTTPS──> Lambda function URL (auth NONE, public, read-only)
 Images (CC0 seed set) and their breed (from the key). No users, no personal data, no writes.
 
 ## Known gaps (lab-admin BASELINE)
-No CDN/WAF; shared account Lambda concurrency limit of 10 (no reserved concurrency); function URL hostname changes on rebuild; current code predates SR-004 headers, SR-024 log format, SR-006 timeouts and SR-027 hashed locks.
+No CDN/WAF; shared account Lambda concurrency limit of 10 (no reserved concurrency); function URL hostname changes on rebuild; current code predates SR-024 log format, SR-006 timeouts and SR-027 hashed locks.

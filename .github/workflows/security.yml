@@ -41,13 +41,20 @@ jobs:
       - run: python3 -B -m pytest -q -p no:cacheprovider --junitxml=../junit-app.xml
         if: always()
         working-directory: api
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: always()
+        with:
+          node-version: "24"
+      # Frontend tests: built-in node:test, no npm ci (no dependency needed); writes web/junit-web.xml.
+      - run: npm --prefix web test
+        if: always()
       - name: Merge JUnit files
         if: always()
         run: >-
           python3 -I -c 'import sys, xml.etree.ElementTree as ET;
           r = ET.Element("testsuites");
           [r.extend(ET.parse(f).getroot().iter("testsuite")) for f in sys.argv[1:]];
-          ET.ElementTree(r).write("junit.xml")' junit-workflow.xml junit-app.xml
+          ET.ElementTree(r).write("junit.xml")' junit-workflow.xml junit-app.xml web/junit-web.xml
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
