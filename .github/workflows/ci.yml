@@ -49,7 +49,7 @@ jobs:
         with:
           node-version: "24"
       - working-directory: web
-        run: npm ci && npm run build # build = tsc --noEmit + vite build
+        run: npm ci && npm run build && npm test # build = tsc --noEmit + vite build; test = node:test (SR-003)
 
   infra:
     name: "terraform: validate"

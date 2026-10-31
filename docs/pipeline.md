@@ -31,9 +31,9 @@ How every change is built. Start a session in this repo with `claude --plugin-di
 | | | workflows / IaC (when changed) | LLM: workflow/IaC reviewer + zizmor, actionlint, Trivy |
 | | | code and dependencies | Semgrep, OSV-Scanner, gitleaks |
 | | | a report per required reviewer, matching the files (hash) | script (CI verifier) |
-| 5 release | deployed build | running app | ZAP baseline in kind |
-| | | ZAP alerts mapped to SRs; any alert without an exception stops the deploy and opens an issue | script |
-| | | smoke test | script |
+| 5 release | deployed build | running app | ZAP baseline in kind on `/` and `/api/health` (the container serves the Lambda zip's web build) |
+| | | any alert from the SR-004 header rules (10019, 10020, 10021, 10035, 10038, 10055) stops the deploy; other alerts stay in the `zap-report` artifact | script (change 0002) |
+| | | smoke test: app, exact SR-004 headers, and the CSP image host equal to the presigned URL host | script |
 | 6 finding | GitHub issue → new `intent.md` | back to stage 1 | |
 
 Docs-only PRs run gitleaks + the verifier only. Implementation starts only when every plan review passes.
@@ -56,7 +56,7 @@ Rounds: round 1 runs every reviewer that applies. From round 2 only the reviewer
 |---|---|---|
 | `ci.yml` | every PR | api (ruff, pytest), web (build), infra (fmt, validate, tflint), kind deploy + health |
 | `security.yml` | every PR | `tests (workflow + app)` (SDLC workflow and app tests, one JUnit file), `stage reviews / verify` (appsec-baseline `verify.yml` at the lock SHA: reports, hashes, statuses, exceptions, structure, cross-check, plan drift, named tests), `security scanners` (docs-only diff: gitleaks; code diff: Semgrep incl. SR-022 rules, OSV-Scanner, gitleaks, Trivy, zizmor, actionlint), `stage gate` (tests + verify) |
-| `deploy.yml` | merge to `main` | build → ZAP baseline in kind → deploy to AWS (OIDC, environment `dev`). ZAP alerts don't stop the deploy until change 0002 (exception EXC-001, expires 2026-12-31) |
+| `deploy.yml` | merge to `main` | build → ZAP baseline in kind on `/` and `/api/health` (any alert from the SR-004 header rules stops the deploy) → deploy to AWS (OIDC, environment `dev`) → smoke test of the app and its SR-004 headers and CSP image host. No LLM security tester in deploy (exception EXC-001, expires 2026-12-31) |
 
 Required on `main`, one check per purpose: `build-and-test` (quality), `stage gate` (the change went through the SDLC workflow), `security scanners` (security).
 

@@ -6,7 +6,7 @@
 - id: EXC-001
   sr: [SR-002, SR-020, SR-024]
   paths: [".github/workflows/deploy.yml"]
-  reason: "Until change 0002, deploy has no LLM security tester and ZAP alerts don't stop it."
+  reason: "Deploy has no LLM security tester: CI calls no AI since change 0001."
   approved_by: nkalexiou
   approved: "2026-10-27"
   expires: "2026-12-31"
