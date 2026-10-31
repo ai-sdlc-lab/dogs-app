@@ -170,6 +170,13 @@ def test_hook_main_session_writes_scratch_in_repo(project):
 PY = ".venv/bin/python3 -I -B"
 SKILL_COMMANDS = [  # every command the stage skill runs, one per Bash call (keep in sync with SKILL.md)
     f"{PY} scripts/appsec_checkout.py",
+    f"{PY} scripts/stage_step.py start --change 0007 --slug demo --stage spec",
+    f"{PY} scripts/stage_step.py review --change 0007 --stage spec --round 1 security-architect=.stage-tmp/spec-security-architect.json"
+    " spec-completeness=.stage-tmp/spec-spec-completeness.json",
+    f"{PY} scripts/stage_step.py report --change 0007 --stage spec",
+    f"{PY} scripts/stage_step.py ship --change 0007 --stage spec --title 'SPEC-0007: spec stage'",
+    f"{PY} scripts/stage_step.py ship --change 0007 --stage code --title 'CODE-0007' --merge-red",
+    f"{PY} scripts/stage_step.py final --change 0007 --title '0007: demo'",
     f"{PY} scripts/preflight.py --slug demo --change 0007",
     f"{PY} scripts/stage_log.py stage.start success change=0007 stage=spec",
     "git checkout -b feature/0007-demo main",
