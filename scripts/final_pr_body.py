@@ -1,6 +1,6 @@
 """Body for the final PR (feature branch -> main): what the owner must look at (SPEC-0001 M-19, M-23).
 
-First what the owner decides at this merge: open high/critical findings, exceptions the agents added to
+First what the owner decides at this merge: open high/critical findings, old debt deferred to issues, exceptions the agents added to
 security/exceptions.yml, and the session's decisions (docs/specs/<NNNN>-<slug>/decisions.md). Then every changed path the owner reviews (CODEOWNERS entries plus Makefile, tests/process/, scanner
 configs), renames as delete + add, changes to the verifier pin or the stage-gate job, and every
 exception a review report used. The owner also checks `git diff --stat` on the same paths, because this
@@ -64,7 +64,7 @@ def exception_ids(text: str) -> set[str]:
 
 
 def decide_first(paths: list[str], root: Path, base_exceptions: str) -> list[str]:
-    open_items = []
+    open_items, deferred = [], []
     for p in paths:
         if "/reviews/" in p and p.endswith(".json") and (root / p).is_file():
             try:
@@ -75,10 +75,17 @@ def decide_first(paths: list[str], root: Path, base_exceptions: str) -> list[str
                     for f in doc.get("findings", [])
                     if f.get("status") == "open"
                 ]
+                deferred += [
+                    f"#{inert(f.get('issue'))} {inert(f.get('sr_ref'))} [{inert(f.get('severity'))}] {inert(f.get('file'))} "
+                    f"({inert(doc.get('reviewer'))} {inert(f.get('id'))})"
+                    for f in doc.get("findings", [])
+                    if f.get("status") == "deferred"
+                ]
             except (ValueError, AttributeError, TypeError):
                 open_items.append(f"malformed report: {inert(p)}")
     lines = ["## Decide at this merge", "", "**Open findings (high/critical, not fixed in 3 rounds)**", ""]
     lines += [f"- {x}" for x in open_items] or ["- none"]
+    lines += ["", "**Old debt moved to issues (not blocking)**", ""] + ([f"- {x}" for x in deferred] or ["- none"])
     ex = root / EXCEPTIONS
     new = sorted(exception_ids(ex.read_text()) - exception_ids(base_exceptions)) if ex.is_file() else []
     lines += ["", f"**Exceptions added in this PR (`{EXCEPTIONS}`)**", ""]
