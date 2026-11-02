@@ -51,3 +51,17 @@ def test_final_accepts_issue_number():
         assert e.code == 2
     else:
         raise AssertionError("non-numeric --issue accepted")
+
+
+def test_ship_uses_only_an_open_pr(monkeypatch):
+    import subprocess
+
+    calls = []
+
+    def fake(*args, **kw):
+        calls.append(args)
+        return subprocess.CompletedProcess(args, 0, stdout="[]", stderr="")
+
+    monkeypatch.setattr(stage_step, "run", fake)
+    assert stage_step.open_pr("stage/0003-intent") is None  # merged/closed PRs of an earlier attempt don't count
+    assert calls[0][:6] == ("gh", "pr", "list", "--head", "stage/0003-intent", "--state") and "open" in calls[0]
