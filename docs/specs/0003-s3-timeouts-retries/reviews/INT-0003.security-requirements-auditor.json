@@ -1,0 +1,26 @@
+{
+ "reviewer": "security-requirements-auditor",
+ "stage": "intent",
+ "change": "0003",
+ "model": "claude-sonnet-5-5",
+ "round": 3,
+ "appsec_sha": "b6fc1ac2a020732ba4da5c04102e1b1faf5cf456",
+ "files": {
+  "docs/specs/0003-s3-timeouts-retries/INT-0003.md": "0642d3011c5ea9e7dfa0b261d478721e81a33c4869f2ce69ac9a8a22957926c5"
+ },
+ "produced": {},
+ "verdict": "allow",
+ "findings": [
+  {
+   "id": "AUD-002",
+   "severity": "info",
+   "sr_ref": "SR-024",
+   "file": "docs/specs/0003-s3-timeouts-retries/INT-0003.md",
+   "line": 21,
+   "evidence": "INT-0003.md line 21 introduces the new event `dependency.unavailable`. The SR-024 mandatory events list (authn.login ... error.unhandled, admin.change) does not include it.",
+   "status": "accepted-risk",
+   "blocking": false,
+   "exception": "EXC-002"
+  }
+ ]
+}
