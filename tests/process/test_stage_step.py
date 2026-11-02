@@ -41,3 +41,13 @@ def test_models_come_from_agent_files():
 def test_bad_change_or_slug_rejected(capsys):
     assert stage_step.main(["start", "--change", "12", "--slug", "x-y", "--stage", "intent"]) == 1
     assert stage_step.main(["start", "--change", "0003", "--slug", "Bad;rm", "--stage", "intent"]) == 1
+
+
+def test_final_accepts_issue_number():
+    # parse through main's parser: a non-numeric issue is rejected before anything runs
+    try:
+        stage_step.main(["final", "--change", "0003", "--title", "x", "--issue", "abc"])
+    except SystemExit as e:
+        assert e.code == 2
+    else:
+        raise AssertionError("non-numeric --issue accepted")

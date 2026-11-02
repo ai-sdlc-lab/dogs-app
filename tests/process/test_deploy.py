@@ -158,4 +158,4 @@ def test_exc001_no_longer_covers_zap():
     assert "security tester" in exc["reason"].lower()
     assert exc["sr"] == ["SR-002", "SR-020", "SR-024"]
     assert exc["paths"] == [".github/workflows/deploy.yml"]
-    assert (exc["approved_by"], exc["approved"], exc["expires"]) == ("nkalexiou", "2026-10-27", "2026-12-31")
+    assert (exc["approved_by"], exc["approved"]) == ("nkalexiou", "2026-10-27") and "expires" not in exc  # no expiry since 2026-11-02

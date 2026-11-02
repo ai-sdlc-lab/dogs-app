@@ -1,6 +1,6 @@
 # dogs-app's accepted security-requirement risks. Format: appsec-baseline schemas/sr-exceptions.schema.json.
 # The SDLC workflow adds entries only for low/medium findings it couldn't fix in 3 rounds
-# (approved_by: agent, at most 90 days); the owner may add others (at most 180 days).
+# (approved_by: agent); the owner may add others. Exceptions don't expire (owner decision 2026-11-02).
 # Every entry reaches main only through the owner's merge; the final PR lists new ones first.
 
 - id: EXC-001
@@ -9,4 +9,3 @@
   reason: "Deploy has no LLM security tester: CI calls no AI since change 0001."
   approved_by: nkalexiou
   approved: "2026-10-27"
-  expires: "2026-12-31"

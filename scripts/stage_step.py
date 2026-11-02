@@ -8,7 +8,7 @@ the change's feature branch, never into main.
   review --change NNNN --stage STAGE --round N R=FILE ...   validate reviewer outputs, gate (state in .stage-tmp/)
   report --change NNNN --stage STAGE                        one report per reviewer (deferred -> GitHub issue)
   ship   --change NNNN --stage STAGE --title T              commit, push, PR into the feature branch, CI, merge
-  final  --change NNNN --title T                            final PR into main (never merged here)
+  final  --change NNNN --title T [--issue N]                final PR into main (never merged here); closes issue N on merge
 
 Run as `.venv/bin/python3 -I -B scripts/stage_step.py ...`.
 """
@@ -305,7 +305,7 @@ def final(a) -> int:
     if body.returncode:
         return out({"ok": False, "errors": [body.stderr.strip()[-300:]]})
     TMP.mkdir(exist_ok=True)
-    (TMP / "body.md").write_text(body.stdout)
+    (TMP / "body.md").write_text(body.stdout + (f"\nCloses #{a.issue}\n" if a.issue else ""))
     r = run("gh", "pr", "create", "--base", "main", "--head", feat, "--title", a.title, "--body-file", str(TMP / "body.md"))
     return out({"ok": r.returncode == 0, "pr": r.stdout.strip(), "errors": [r.stderr.strip()[-300:]] if r.returncode else []})
 
@@ -323,6 +323,7 @@ def main(argv=None) -> int:
     sub.choices["review"].add_argument("outputs", nargs="+", metavar="REVIEWER=FILE")
     for name in ("ship", "final"):
         sub.choices[name].add_argument("--title", required=True)
+    sub.choices["final"].add_argument("--issue", type=int, help="GitHub issue the change was started from")
     sub.choices["ship"].add_argument("--merge-red", action="store_true", help="after the last fix round: merge anyway")
     a = p.parse_args(argv)
     if not CHANGE.match(a.change) or (getattr(a, "slug", None) and not SLUG.match(a.slug)):
