@@ -99,7 +99,7 @@ def decide_first(paths: list[str], root: Path, base_exceptions: str) -> list[str
     lines += ["", "**Decisions the session took without asking**", ""]
     dec = [p for p in paths if re.fullmatch(r"docs/specs/[0-9]{4}-[a-z0-9-]+/decisions\.md", p) and (root / p).is_file()]
     for p in dec:
-        lines += [f"- {inert(x.strip())}" for x in (root / p).read_text().splitlines()[:100] if x.strip() and not x.startswith("#")]
+        lines += [f"- {inert(x.strip().removeprefix('- '))}" for x in (root / p).read_text().splitlines()[:100] if x.strip() and not x.startswith("#")]
     if not dec:
         lines += ["- none recorded"]
     return lines + [""]
