@@ -1,0 +1,53 @@
+{
+ "reviewer": "security-requirements-auditor",
+ "stage": "spec",
+ "change": "0003",
+ "model": "claude-sonnet-5-5",
+ "round": 3,
+ "appsec_sha": "b6fc1ac2a020732ba4da5c04102e1b1faf5cf456",
+ "files": {
+  "docs/specs/0003-s3-timeouts-retries/SPEC-0003.md": "2bc73226d781e8d824bda4c3f72a51514a97e9717f31024942444f983914e174"
+ },
+ "produced": {
+  "docs/specs/0003-s3-timeouts-retries/TRACE-0003.md": "068ff22641f655d950e1c9609d5dfbd40c56b32b53b4f0f8d872d680d5c6ed08"
+ },
+ "verdict": "allow",
+ "findings": [
+  {
+   "id": "AUD-001",
+   "severity": "high",
+   "sr_ref": "SR-005",
+   "file": "docs/specs/0003-s3-timeouts-retries/SPEC-0003.md",
+   "line": 131,
+   "evidence": "SPEC-0003 section 8 SR-005 row: \"Gap (not met), unchanged: other error bodies and the error.unhandled log (7; SPEC-0002 D-1)\". Other error bodies are not yet the fixed SR-005 body and unhandled exceptions are not logged as error.unhandled.",
+   "status": "deferred",
+   "blocking": false,
+   "pre_existing": true,
+   "issue": 30
+  },
+  {
+   "id": "AUD-002",
+   "severity": "high",
+   "sr_ref": "SR-022",
+   "file": "docs/specs/0003-s3-timeouts-retries/SPEC-0003.md",
+   "line": 138,
+   "evidence": "SPEC-0003 section 8 SR-022 row: \"Gap on s3:TlsVersion is unchanged (SPEC-0002 D-3, out of scope)\". The bucket policy has no deny for TLS below 1.2 and there is no TLS 1.1 handshake test.",
+   "status": "deferred",
+   "blocking": false,
+   "pre_existing": true,
+   "issue": 32
+  },
+  {
+   "id": "AUD-003",
+   "severity": "medium",
+   "sr_ref": "SR-024",
+   "file": "docs/specs/0003-s3-timeouts-retries/SPEC-0003.md",
+   "line": 136,
+   "evidence": "SPEC-0003 section 8 SR-024 row: \"Gap (not met), unchanged: the mandatory events other than this one are not emitted by the current code (out of scope)\". Events such as input.rejected and error.unhandled are not emitted.",
+   "status": "deferred",
+   "blocking": false,
+   "pre_existing": true,
+   "issue": 38
+  }
+ ]
+}
