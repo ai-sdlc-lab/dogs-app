@@ -66,25 +66,21 @@
     "allow": [
       "Bash(git *)",
       "Bash(gh *)",
-      "Bash(python3 *)",
       "Bash(make *)",
-      "Bash(.venv/bin/python3 *)",
+      "Bash(.venv/bin/python3 -I -B scripts/*)",
+      "Bash(.venv/bin/python3 -I -B .appsec-baseline/*)",
       "Bash(mkdir *)",
       "Bash(ls*)",
       "Bash(cat *)",
       "Bash(head *)",
       "Bash(tail *)",
       "Bash(wc *)",
-      "Bash(find *)",
       "Bash(diff *)",
       "Bash(sort *)",
       "Bash(grep *)",
-      "Bash(echo *)",
       "Bash(pwd)",
-      "Bash(cp *)",
-      "Bash(mv *)",
-      "Bash(rm *)",
-      "Bash(touch *)"
+      "Bash(touch *)",
+      "Bash(rm .stage-tmp/*)"
     ]
   }
 }

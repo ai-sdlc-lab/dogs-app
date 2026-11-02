@@ -194,6 +194,7 @@ SKILL_COMMANDS = [  # every command the stage skill runs, one per Bash call (kee
     f"{PY} .appsec-baseline/stage/crosscheck.py docs/specs/0007-demo/TRACE-0007.md docs/specs/0007-demo/THREAT-0007.md"
     " docs/specs/0007-demo/PLAN-0007.md",
     f"{PY} .appsec-baseline/stage/validate.py report docs/specs/0007-demo/reviews/SPEC-0007.security-architect.json",
+    "make fmt",
     "make test",
     "git add -A",
     "git commit -m 'SPEC-0007: spec stage'",

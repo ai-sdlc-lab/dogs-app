@@ -175,6 +175,13 @@ def test_settings_deny_admin_gh_commands():
 
 
 def test_settings_allow_the_stage_skill_commands():
+    """Explicit allow list (no blanket Bash); an unlisted command prompts. 2026-11-02: tightened, no general
+    interpreters (python3 only for the workflow's scripts), rm only in .stage-tmp/, no find/cp/mv/echo; tools only
+    through make (make fmt, make test). Machine protection is lab-admin #23 (sandbox)."""
     allow = SETTINGS["permissions"]["allow"]
-    for rule in ("Bash(.venv/bin/python3 *)", "Bash(git *)", "Bash(gh *)", "Bash(make *)", "Bash(mkdir *)"):
+    assert "Bash" not in allow and "Bash(*)" not in allow
+    for rule in ("Bash(.venv/bin/python3 -I -B scripts/*)", "Bash(.venv/bin/python3 -I -B .appsec-baseline/*)",
+                 "Bash(git *)", "Bash(gh *)", "Bash(make *)", "Bash(rm .stage-tmp/*)"):
         assert rule in allow, rule
+    for gone in ("Bash(python3 *)", "Bash(.venv/bin/python3 *)", "Bash(rm *)", "Bash(find *)", "Bash(cp *)", "Bash(mv *)", "Bash(echo *)"):
+        assert gone not in allow, gone
