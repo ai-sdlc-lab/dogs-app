@@ -1,0 +1,28 @@
+{
+ "reviewer": "security-architect",
+ "stage": "spec",
+ "change": "0003",
+ "model": "claude-sonnet-5-5",
+ "round": 3,
+ "appsec_sha": "b6fc1ac2a020732ba4da5c04102e1b1faf5cf456",
+ "files": {
+  "docs/specs/0003-s3-timeouts-retries/SPEC-0003.md": "2bc73226d781e8d824bda4c3f72a51514a97e9717f31024942444f983914e174"
+ },
+ "produced": {
+  "docs/specs/0003-s3-timeouts-retries/THREAT-0003.md": "5cccbcec5a453630982e2342a0f8469440c542797ab7fb62a2f851444003b610"
+ },
+ "verdict": "allow",
+ "findings": [
+  {
+   "id": "ARC-002",
+   "severity": "low",
+   "sr_ref": "SR-024",
+   "file": "docs/specs/0003-s3-timeouts-retries/SPEC-0003.md",
+   "line": 57,
+   "evidence": "\"the app reads that file once at start. If the file is absent or its content does not match `^[0-9a-f]{40}$`, `version` is `unknown`.\" Tests cover absent, empty, wrong case or length and `../x`, but not an unreadable file (permission error, directory, non-UTF-8 bytes, oversized file) and the spec fixes no path or read-size bound.",
+   "status": "accepted-risk",
+   "blocking": false,
+   "exception": "EXC-003"
+  }
+ ]
+}

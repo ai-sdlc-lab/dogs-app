@@ -16,3 +16,10 @@
   reason: "AUD-002 (info): the new event dependency.unavailable is not in the SR-024 vocabulary; the baseline is not editable here. The spec states it as a new <area>.<action> event."
   approved_by: agent
   approved: "2026-11-02"
+
+- id: EXC-003
+  sr: [SR-024]
+  paths: ["docs/specs/0003-s3-timeouts-retries/SPEC-0003.md"]
+  reason: "ARC-002 (low): the version file's fixed path, read-size cap and unreadable-file cases are not yet in the spec; not fixed within 3 rounds. The code stage must read it from a fixed path with a small cap and fall back to unknown on any error."
+  approved_by: agent
+  approved: "2026-11-02"
