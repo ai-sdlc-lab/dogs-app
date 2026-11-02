@@ -92,6 +92,7 @@ def start(a) -> int:
         steps = [("git", "checkout", "main"), ("git", "pull", "--ff-only"), ("git", "checkout", "-b", feat)]
     else:
         steps = [("git", "checkout", feat), ("git", "pull", "--ff-only")]
+    steps.append(("git", "push", "-u", "origin", feat))  # the stage PR needs the feature branch on GitHub
     steps.append(("git", "checkout", "-B", stage_branch))
     for s in steps:
         r = run(*s)
