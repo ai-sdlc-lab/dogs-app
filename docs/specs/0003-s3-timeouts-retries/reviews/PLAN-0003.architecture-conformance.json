@@ -1,0 +1,14 @@
+{
+ "reviewer": "architecture-conformance",
+ "stage": "plan",
+ "change": "0003",
+ "model": "claude-sonnet-5-5",
+ "round": 2,
+ "appsec_sha": "b6fc1ac2a020732ba4da5c04102e1b1faf5cf456",
+ "files": {
+  "docs/specs/0003-s3-timeouts-retries/PLAN-0003.md": "4a5c91085088d326a8ad27a812a3d7f6a2f184f2928e2ba0a9e882d825876a68"
+ },
+ "produced": {},
+ "verdict": "allow",
+ "findings": []
+}
