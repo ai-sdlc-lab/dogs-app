@@ -9,3 +9,10 @@
   reason: "Deploy has no LLM security tester: CI calls no AI since change 0001."
   approved_by: nkalexiou
   approved: "2026-10-27"
+
+- id: EXC-002
+  sr: [SR-024]
+  paths: ["docs/specs/0003-s3-timeouts-retries/INT-0003.md"]
+  reason: "AUD-002 (info): the new event dependency.unavailable is not in the SR-024 vocabulary; the baseline is not editable here. The spec states it as a new <area>.<action> event."
+  approved_by: agent
+  approved: "2026-11-02"
