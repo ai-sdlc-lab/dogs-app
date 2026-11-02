@@ -1,0 +1,14 @@
+{
+ "reviewer": "security-code-reviewer",
+ "stage": "code",
+ "change": "9999",
+ "model": "claude-sonnet-5-5",
+ "round": 1,
+ "appsec_sha": "b6fc1ac2a020732ba4da5c04102e1b1faf5cf456",
+ "files": {
+  "api/app/main.py": "bbd94990ea1548a2a1ff119de84f55e9093352d1ab80775365e0067afb6ade1a"
+ },
+ "produced": {},
+ "verdict": "allow",
+ "findings": []
+}
