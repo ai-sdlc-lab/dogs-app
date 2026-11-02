@@ -247,6 +247,14 @@ def checks(pr: str) -> list[dict]:
     return json.loads(r.stdout or "[]")
 
 
+def open_pr(branch: str) -> dict | None:
+    """The open PR of this branch. A merged or closed PR with the same branch name (an earlier attempt of the
+    same change) never counts: found by the rehearsal, ship 'merged' an old, already merged PR."""
+    r = run("gh", "pr", "list", "--head", branch, "--state", "open", "--json", "number,baseRefName")
+    prs = json.loads(r.stdout or "[]") if r.returncode == 0 else []
+    return prs[0] if prs else None
+
+
 def ship(a) -> int:
     feat, branch = feature(a.change), f"stage/{a.change}-{a.stage}"
     if run("git", "branch", "--show-current").stdout.strip() != branch:
@@ -259,14 +267,15 @@ def ship(a) -> int:
     r = run("git", "push", "-u", "origin", branch)
     if r.returncode:
         return out({"ok": False, "errors": [r.stderr.strip()[-300:]]})
-    pr = run("gh", "pr", "view", branch, "--json", "number,baseRefName")
-    if pr.returncode:
+    info = open_pr(branch)
+    if not info:
         r = run("gh", "pr", "create", "--base", feat, "--head", branch, "--title", a.title,
                 "--body", f"Stage {a.stage} of change {a.change}.")
         if r.returncode:
             return out({"ok": False, "errors": [r.stderr.strip()[-300:]]})
-        pr = run("gh", "pr", "view", branch, "--json", "number,baseRefName")
-    info = json.loads(pr.stdout)
+        info = open_pr(branch)
+        if not info:
+            return out({"ok": False, "errors": [f"no open PR for {branch} after creating it"]})
     if not base_ok(info["baseRefName"], a.change):
         return out({"ok": False, "errors": [f"PR base is {info['baseRefName']}: stage PRs go only into {feat}"]})
     num, deadline = str(info["number"]), time.time() + CI_WAIT
@@ -288,8 +297,9 @@ def ship(a) -> int:
                 logs.append({c["name"]: [x[-200:] for x in lines if re.search(r"FAIL|Error|error|assert", x)][-15:]})
         return out({"ok": False, "pr": num, "failed": [c["name"] for c in failed], "logs": logs})
     r = run("gh", "pr", "merge", num, "--merge", "--delete-branch")
-    if r.returncode:
-        return out({"ok": False, "pr": num, "errors": [r.stderr.strip()[-300:]]})
+    state = run("gh", "pr", "view", num, "--json", "state", "-q", ".state").stdout.strip()
+    if r.returncode or state != "MERGED":
+        return out({"ok": False, "pr": num, "errors": [f"merge failed (state {state}): {r.stderr.strip()[-300:]}"]})
     run("git", "checkout", feat)
     run("git", "pull", "--ff-only")
     py("scripts/stage_log.py", "pr.merged", "success", f"change={a.change}", f"stage={a.stage}")
