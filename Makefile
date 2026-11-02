@@ -3,7 +3,7 @@ BUCKET := sdlc-lab-app-dogs-dev-992382408037
 PY ?= $(if $(wildcard .venv/bin/python),$(CURDIR)/.venv/bin/python,python3.14)  # make venv once
 TF := terraform -chdir=infra
 
-.PHONY: venv test test-api test-process test-web lint build plan apply destroy seed run-api
+.PHONY: venv fmt test test-api test-process test-web lint build plan apply destroy seed run-api
 
 venv:
 	python3.14 -m venv .venv
@@ -22,6 +22,11 @@ test-web:
 # SDLC workflow tests (change 0001): hook, settings, agents, workflows, scripts. Needs .appsec-baseline/ (scripts/appsec_checkout.py).
 test-process:
 	$(PY) -I -B -m pytest -q -p no:cacheprovider tests/process
+
+# Formatting the SDLC workflow runs at the code stage (it doesn't run lint: CI does, tflint isn't local).
+fmt:
+	cd api && ruff format . && ruff check --fix .
+	terraform fmt -recursive infra
 
 lint:
 	cd api && ruff check . && ruff format --check .

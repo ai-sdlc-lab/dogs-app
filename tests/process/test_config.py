@@ -175,6 +175,10 @@ def test_settings_deny_admin_gh_commands():
 
 
 def test_settings_allow_the_stage_skill_commands():
+    """Explicit allow list (no blanket Bash): an unlisted tool prompts. 2026-11-02: repo dev tools added after a
+    direct ruff call prompted mid-run; the skill uses make targets (make fmt, make test) for them."""
     allow = SETTINGS["permissions"]["allow"]
-    for rule in ("Bash(.venv/bin/python3 *)", "Bash(git *)", "Bash(gh *)", "Bash(make *)", "Bash(mkdir *)"):
+    assert "Bash" not in allow and "Bash(*)" not in allow
+    for rule in ("Bash(.venv/bin/python3 *)", "Bash(git *)", "Bash(gh *)", "Bash(make *)", "Bash(mkdir *)",
+                 "Bash(ruff *)", "Bash(npm run *)", "Bash(npm test*)", "Bash(terraform fmt*)", "Bash(terraform validate*)", "Bash(cd *)"):
         assert rule in allow, rule
