@@ -1,0 +1,16 @@
+{
+ "reviewer": "security-requirements-auditor",
+ "stage": "spec",
+ "change": "9999",
+ "model": "claude-sonnet-5-5",
+ "round": 1,
+ "appsec_sha": "b6fc1ac2a020732ba4da5c04102e1b1faf5cf456",
+ "files": {
+  "docs/specs/9999-rehearsal/SPEC-9999.md": "b00026409b24fbb4bedd5e9664c75b4ee44d14bb59d2bc487a22045ca5e732e9"
+ },
+ "produced": {
+  "docs/specs/9999-rehearsal/TRACE-9999.md": "c92ace500c23facbb222408031aa3a8142ecd3819bdf0794a055e3de5dd132c3"
+ },
+ "verdict": "allow",
+ "findings": []
+}
