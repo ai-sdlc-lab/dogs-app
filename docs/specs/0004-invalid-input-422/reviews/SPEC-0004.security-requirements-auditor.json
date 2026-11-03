@@ -1,0 +1,42 @@
+{
+ "reviewer": "security-requirements-auditor",
+ "stage": "spec",
+ "change": "0004",
+ "model": "claude-sonnet-5-5",
+ "round": 3,
+ "appsec_sha": "e4e41f610da2532483048bad3f2c5a82411e4569",
+ "files": {
+  "docs/specs/0004-invalid-input-422/SPEC-0004.md": "c73ed3243118d1df4aa1409a243d1f1893d4f070f829367127c659fd13e98f12"
+ },
+ "produced": {
+  "docs/specs/0004-invalid-input-422/TRACE-0004.md": "875485aefe0f5bef7ad82011d2c5bfbd17bbc07a7fb981d8faddf1c6809dcd21"
+ },
+ "verdict": "allow",
+ "findings": [
+  {
+   "id": "AUD-002",
+   "severity": "medium",
+   "sr_ref": "SR-005",
+   "file": "docs/specs/0004-invalid-input-422/SPEC-0004.md",
+   "line": 129,
+   "evidence": "SPEC \u00a79 SR-005: \"The general 4xx/404/500 body and `error.unhandled` stay with #30 (INT-0004 out of scope); this is a deviation for those only, not for the 422.\" No last-resort handler or `error.unhandled` log is specified.",
+   "status": "deferred",
+   "blocking": false,
+   "pre_existing": true,
+   "summary": "No last-resort handler, 404/500 not in SR-005 body (old debt)",
+   "issue": 30
+  },
+  {
+   "id": "AUD-003",
+   "severity": "medium",
+   "sr_ref": "SR-005",
+   "file": "docs/specs/0004-invalid-input-422/SPEC-0004.md",
+   "line": 106,
+   "evidence": "\"The general 4xx/404/500 body and `error.unhandled` stay with #30 (INT-0004 out of scope); this is a deviation for those only\". There is no last-resort handler, no fixed body for 404/405/500, and no forced-internal-error test.",
+   "status": "deferred",
+   "pre_existing": true,
+   "summary": "No last-resort handler or fixed error body for 404/405/500 (#30)",
+   "issue": 30
+  }
+ ]
+}
