@@ -1,0 +1,40 @@
+{
+ "reviewer": "security-requirements-auditor",
+ "stage": "spec",
+ "change": "9999",
+ "model": "claude-sonnet-5-5",
+ "round": 2,
+ "appsec_sha": "e4e41f610da2532483048bad3f2c5a82411e4569",
+ "files": {
+  "docs/specs/9999-rehearsal/SPEC-9999.md": "4d5b2989bcb421c2a84c36f384d3ca5397e5fde7771de7cef71ec831742295be"
+ },
+ "produced": {
+  "docs/specs/9999-rehearsal/TRACE-9999.md": "c92ace500c23facbb222408031aa3a8142ecd3819bdf0794a055e3de5dd132c3"
+ },
+ "verdict": "allow",
+ "findings": [
+  {
+   "id": "AUD-001",
+   "severity": "medium",
+   "sr_ref": "SR-001",
+   "file": "docs/specs/9999-rehearsal/SPEC-9999.md",
+   "line": 1,
+   "evidence": "Rehearsal old debt: invalid input returns 404 instead of 422, unchanged existing behaviour.",
+   "status": "deferred",
+   "pre_existing": true,
+   "summary": "invalid input returns 404 instead of 422",
+   "issue": 65
+  },
+  {
+   "id": "AUD-002",
+   "severity": "info",
+   "sr_ref": "SR-007",
+   "file": "docs/specs/9999-rehearsal/SPEC-9999.md",
+   "line": 1,
+   "evidence": "Rehearsal old debt: shared Lambda concurrency limit, unchanged existing behaviour.",
+   "status": "deferred",
+   "pre_existing": true,
+   "summary": "shared Lambda concurrency limit"
+  }
+ ]
+}
