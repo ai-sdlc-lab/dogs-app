@@ -1,0 +1,20 @@
+{
+ "reviewer": "security-code-reviewer",
+ "stage": "code",
+ "change": "0003",
+ "model": "claude-sonnet-5-5",
+ "round": 2,
+ "appsec_sha": "b6fc1ac2a020732ba4da5c04102e1b1faf5cf456",
+ "files": {
+  "api/app/main.py": "a590d28411972edf9d80ef7b83c9249e4dceffcde94ff704f9c7ea2b9baa8337",
+  "api/app/s3_limits.py": "3fe3da580cf3a9ec65806dce4a55d172e1a27dc00584bd484ced64b814f74b24",
+  "api/tests/s3_stub.py": "14b50af77b2abf08fce54c4732ffec96152e5a990b079af92b552428276e8b78",
+  "api/tests/test_s3_503.py": "302021a3826db72f2155dd55e51bd45cd97a2377940f872d05e3f3ff07d41768",
+  "api/tests/test_s3_deadline.py": "c2dec731ac3e068965f06eefaed47b57197fc068b424683ceb7f4fc0128a16db",
+  "api/tests/test_s3_limits.py": "f6bec89cadf2ceb385953156b8de9377593f1ed6da19e33fc37eb891c4a288d3",
+  "api/tests/test_s3_socket.py": "c2fb8da2dc3dc3b7a78ef5a5beaef3a0cad8b46f7d96ba1b9b69a993810f7cf2"
+ },
+ "produced": {},
+ "verdict": "allow",
+ "findings": []
+}
