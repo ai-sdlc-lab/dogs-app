@@ -1,13 +1,18 @@
 import os
 import re
+import uuid
 from functools import cache
 from pathlib import Path, PurePosixPath
 
 import boto3
 from botocore.config import Config
-from fastapi import APIRouter, FastAPI, HTTPException
+from botocore.exceptions import BotoCoreError, ClientError
+from fastapi import APIRouter, FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from mangum import Mangum
+
+from app import s3_limits
 
 PREFIX = "dogs/"  # images live at s3://$DOGS_BUCKET/dogs/<breed>/<file>
 BREED = re.compile(r"^[a-z0-9-]{1,40}$")
@@ -21,28 +26,52 @@ def s3():
     # Regional endpoint: presigned URLs on the global s3.amazonaws.com host get a
     # TemporaryRedirect for new buckets, which browsers' <img> requests don't survive.
     region = os.environ.get("AWS_REGION", "eu-north-1")
-    return boto3.client(
+    client = boto3.client(
         "s3",
         region_name=region,
         endpoint_url=f"https://s3.{region}.amazonaws.com",
-        config=Config(signature_version="s3v4", s3={"addressing_style": "virtual"}),
+        config=Config(
+            signature_version="s3v4",
+            s3={"addressing_style": "virtual"},
+            connect_timeout=s3_limits.CONNECT_TIMEOUT,
+            read_timeout=s3_limits.READ_TIMEOUT,
+            # total_max_attempts counts the first try (max_attempts would mean retries: 3 -> 4 attempts)
+            retries={"mode": "standard", "total_max_attempts": s3_limits.MAX_ATTEMPTS},
+        ),
     )
+    return s3_limits.install(client)
+
+
+class S3Unavailable(Exception):
+    """An S3 failure (SPEC-0003 1.4); answered with 503 by the handler below."""
 
 
 def list_dogs(breed: str | None = None) -> list[dict]:
-    bucket = os.environ["DOGS_BUCKET"]
+    bucket = os.environ["DOGS_BUCKET"]  # read first: a missing setting stays a plain 500, never a 503
     prefix = PREFIX + (f"{breed}/" if breed else "")
     dogs = []
-    for page in s3().get_paginator("list_objects_v2").paginate(Bucket=bucket, Prefix=prefix):
-        for obj in page.get("Contents", []):
-            parts = obj["Key"].removeprefix(PREFIX).split("/")
-            if len(parts) != 2 or not BREED.match(parts[0]) or not parts[1]:
-                continue
-            url = s3().generate_presigned_url(
-                "get_object", Params={"Bucket": bucket, "Key": obj["Key"]}, ExpiresIn=URL_TTL
-            )
-            dogs.append({"breed": parts[0], "url": url})
+    try:
+        with s3_limits.s3_deadline():
+            for page in s3().get_paginator("list_objects_v2").paginate(Bucket=bucket, Prefix=prefix):
+                for obj in page.get("Contents", []):
+                    parts = obj["Key"].removeprefix(PREFIX).split("/")
+                    if len(parts) != 2 or not BREED.match(parts[0]) or not parts[1]:
+                        continue
+                    url = s3().generate_presigned_url(
+                        "get_object", Params={"Bucket": bucket, "Key": obj["Key"]}, ExpiresIn=URL_TTL
+                    )
+                    dogs.append({"breed": parts[0], "url": url})
+    except (BotoCoreError, ClientError, s3_limits.DeadlineExceeded) as exc:
+        raise S3Unavailable from exc
     return dogs
+
+
+async def s3_unavailable(request: Request, _exc: S3Unavailable) -> JSONResponse:
+    context = request.scope.get("aws.context")  # set by Mangum; never a request header or query value
+    request_id = str(getattr(context, "aws_request_id", "") or "") or str(uuid.uuid4())
+    return JSONResponse(
+        status_code=503, content={"error": "dependency_unavailable", "request_id": request_id}
+    )
 
 
 @router.get("/api/health")
@@ -151,6 +180,7 @@ def security_headers(app):
 def build(web_dir: Path):
     api = FastAPI(title="dogs-app", docs_url=None, redoc_url=None, openapi_url=None)
     api.include_router(router)
+    api.add_exception_handler(S3Unavailable, s3_unavailable)
     if web_dir.is_dir():
         api.mount("/", StaticFiles(directory=web_dir, html=True), name="web")
     return security_headers(api)

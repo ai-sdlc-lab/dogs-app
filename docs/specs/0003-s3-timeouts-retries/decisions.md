@@ -13,4 +13,7 @@
 | spec | `request_id` is a correlation ID, not a token; no crypto inventory entry | Resolves AUD-004 (SR-021). |
 | plan | SPEC-0003 §2 "no new ... file" is read as no new user-facing file or artifact; new source/test modules (`api/app/s3_limits.py`, test files) are intended | Spec stays unchanged (it is merged and reviewed); the deviation is noted in PLAN-0003.md (ARC-007). |
 | plan | botocore stays pinned at the existing exact version `botocore==1.43.117`; a test fails loudly if the private internals used go missing | Resolves the private-API risk (ARC-003). |
+| code | Config uses `total_max_attempts: 3`; retry hook refuses any retry (any exception or status >= 400) that cannot fit in the time left | botocore `max_attempts` counts retries, not attempts; SCR-001 showed 4xx throttle retries could sleep past 8 s. Departures recorded in PLAN-0003.md. |
+| code | Session class swapped in place by `install()`; body read manually in small pieces; no `conftest.py` (helpers in `s3_stub.py`) | Keeps TLS verify/CA/proxy settings as botocore built them; a blocking read would never time out on a slow drip; the path hook only allows files the plan lists. |
+| code | The plan was changed in the code stage, so the plan reviewers were run again on it (both allow) | Process rule. |
 | spec | Deadline bounds an in-flight attempt, not only new attempts | Slow-drip responses never trip the per-read timeout (ARC-001). |
