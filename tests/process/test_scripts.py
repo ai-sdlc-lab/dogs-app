@@ -169,9 +169,9 @@ def test_final_pr_body_lists_untracked_debt_and_open_questions(tmp_path):
     (ch / "reviews/SPEC-0007.security-requirements-auditor.json").write_text(json.dumps({"reviewer": "security-requirements-auditor", "findings": [
         {"id": "AUD-001", "severity": "medium", "sr_ref": "SR-001", "file": "x", "evidence": "e", "status": "deferred", "pre_existing": True, "issue": 65, "summary": "404 not 422"},
         {"id": "AUD-002", "severity": "info", "sr_ref": "SR-007", "file": "x", "evidence": "e", "status": "deferred", "pre_existing": True, "summary": "shared concurrency"}]}))
-    (ch / "SPEC-0007.md").write_text("# SPEC-0007\n\n## Open questions for the owner\n\n- Is failure logging wanted?\n\n## Other\n\n- not a question\n")
+    (ch / "SPEC-0007.md").write_text("# SPEC-0007\n\n## Open questions for the owner\n\n- Is failure logging wanted?\n- None that block this change.\n\n## Other\n\n- not a question\n")
     paths = ["docs/specs/0007-x/reviews/SPEC-0007.security-requirements-auditor.json", "docs/specs/0007-x/SPEC-0007.md"]
     top = final_pr_body.body(paths, root=tmp_path).split("## Owner review")[0]
     assert "#65 SR-001 [medium] 404 not 422" in top.split("not tracked")[0]
     assert "SR-007 [info] shared concurrency" in top.split("not tracked")[1]
-    assert "SPEC-0007.md: Is failure logging wanted?" in top and "not a question" not in top
+    assert "SPEC-0007.md: Is failure logging wanted?" in top and "not a question" not in top and "None that block" not in top

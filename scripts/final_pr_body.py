@@ -95,7 +95,7 @@ def decide_first(paths: list[str], root: Path, base_exceptions: str) -> list[str
             for line in (root / p).read_text().splitlines():
                 if line.startswith("#"):
                     inside = "open question" in line.lower()
-                elif inside and line.strip():
+                elif inside and line.strip() and not line.strip().removeprefix("- ").lower().startswith("none"):
                     questions.append(f"{inert(p.rsplit('/', 1)[-1])}: {inert(line.strip().removeprefix('- '))}")
     lines += [f"- {q}" for q in questions[:30]] or ["- none"]
     ex = root / EXCEPTIONS
