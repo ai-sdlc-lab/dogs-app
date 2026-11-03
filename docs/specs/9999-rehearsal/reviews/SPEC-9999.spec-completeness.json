@@ -1,0 +1,14 @@
+{
+ "reviewer": "spec-completeness",
+ "stage": "spec",
+ "change": "9999",
+ "model": "claude-haiku-4-5-20251001",
+ "round": 1,
+ "appsec_sha": "e4e41f610da2532483048bad3f2c5a82411e4569",
+ "files": {
+  "docs/specs/9999-rehearsal/SPEC-9999.md": "4d5b2989bcb421c2a84c36f384d3ca5397e5fde7771de7cef71ec831742295be"
+ },
+ "produced": {},
+ "verdict": "allow",
+ "findings": []
+}
