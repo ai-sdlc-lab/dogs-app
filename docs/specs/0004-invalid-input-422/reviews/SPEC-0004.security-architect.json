@@ -9,7 +9,7 @@
   "docs/specs/0004-invalid-input-422/SPEC-0004.md": "c73ed3243118d1df4aa1409a243d1f1893d4f070f829367127c659fd13e98f12"
  },
  "produced": {
-  "docs/specs/0004-invalid-input-422/THREAT-0004.md": "cbfb2d637da5fdb599c201b1f7fa965201d55be116799ef6b16e93e7315788c2"
+  "docs/specs/0004-invalid-input-422/THREAT-0004.md": "ea2e717c708fbcd71c3a6a62b2a07abea16e428f5e6b959ce8f99e4552612db4"
  },
  "verdict": "allow",
  "findings": []
