@@ -23,6 +23,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -187,6 +188,24 @@ def check_file(root: Path, event: dict, rel: str, subagent: bool) -> None:
         ask(root, event, "protected_path", rel)
 
 
+def in_temp_dir(path: str) -> bool:
+    real = os.path.realpath(path)
+    roots = {os.path.realpath(tempfile.gettempdir()), os.path.realpath("/tmp")}
+    return any(real.startswith(r.rstrip("/") + "/") for r in roots)
+
+
+def check_read(root: Path, event: dict, path: str, subagent: bool) -> None:
+    """Claude's read tools stay inside the repo; the main session may also read the temp folder (its background
+    command output). A path outside is refused at once, so the agent corrects it instead of the owner getting a
+    permission prompt (change 0003: a subagent dropped `dogs-app/` from an absolute path)."""
+    full = os.path.join(root, path)
+    if not os.path.relpath(os.path.realpath(full), root).startswith(".."):
+        return
+    if not subagent and in_temp_dir(full):
+        return
+    deny(root, event, "read_outside_repo", f"{path} is outside the repo; read it under {root}")
+
+
 def pr_base(root: Path, ref: str) -> str:
     args = ["gh", "pr", "view", *([ref] if ref else []), "--json", "baseRefName", "-q", ".baseRefName"]
     r = subprocess.run(args, cwd=root, capture_output=True, text=True, check=False, timeout=20)
@@ -228,6 +247,12 @@ def main() -> None:
         if subagent:
             deny(root, event, "subagent_no_shell", str(event.get("agent_type")))
         check_bash(root, event, str(ti.get("command", "")))
+        return
+    if tool in ("Read", "Grep", "Glob"):
+        pattern = str(ti.get("pattern") or "") if tool == "Glob" else ""
+        target = ti.get("file_path") or ti.get("path") or (re.split(r"[*?\[{]", pattern)[0] if pattern.startswith("/") else "")
+        if target:
+            check_read(root, event, str(target), subagent)
         return
     path = ti.get("file_path") or ti.get("notebook_path")
     if not isinstance(path, str) or not path:

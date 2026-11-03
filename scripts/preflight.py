@@ -61,8 +61,8 @@ def settings_problems(root: Path = ROOT) -> list[str]:
         out.append("bypass permission mode is not disabled in .claude/settings.json")
     pre = s.get("hooks", {}).get("PreToolUse", [])
     matchers = {m for h in pre for m in str(h.get("matcher", "")).split("|") if "protect-paths.py" in json.dumps(h)}
-    if not {"Edit", "Write", "NotebookEdit", "Bash"} <= matchers:
-        out.append("the protect-paths hook must match Edit, Write, NotebookEdit and Bash")
+    if not {"Edit", "Write", "NotebookEdit", "Bash", "Read", "Grep", "Glob"} <= matchers:
+        out.append("the protect-paths hook must match Edit, Write, NotebookEdit, Bash, Read, Grep and Glob")
     for rule in REQUIRED_ASK:
         if rule not in perms.get("ask", []):
             out.append(f"missing ask rule {rule}")
