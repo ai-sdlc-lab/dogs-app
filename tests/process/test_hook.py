@@ -231,3 +231,39 @@ def test_hook_allows_every_session_write_in_accept_edits(project, path):
 def test_hook_allows_author_stage_file_in_accept_edits(project):
     root = project("stage/0007-spec")
     assert hook(root, path="docs/specs/0007-demo/SPEC-0007.md", agent=AUTHOR, extra={"permission_mode": "acceptEdits"}) == "allow"
+
+
+def test_hook_refuses_reads_outside_the_repo(project):
+    """Change 0003: the author read .../sdlc-lab/.appsec-baseline/... (dogs-app/ dropped) and the owner got a prompt."""
+    root = project("stage/0007-spec")
+    outside = str(root.parent.parent / ".appsec-baseline/requirements/security-requirements.md")
+    for tool in ("Read", "Grep", "Glob"):
+        assert hook(root, tool=tool, path=outside, agent=AUTHOR) == "deny", tool
+        assert hook(root, tool=tool, path=outside) == "deny", tool
+        assert hook(root, tool=tool, path=str(root / "docs/specs/0007-demo/PLAN-0007.md"), agent=AUTHOR) == "allow", tool
+    assert hook(root, tool="Read", path="docs/specs/0007-demo/PLAN-0007.md", agent="security-architect") == "allow"
+    import os
+    import re
+
+    own = os.path.join(os.path.realpath("/tmp"), f"claude-{os.getuid()}", re.sub(r"[^A-Za-z0-9-]", "-", str(root.resolve())))
+    tmp = own + "/s1/tasks/b1.output"  # where Claude Code writes this repo's background command output
+    assert hook(root, tool="Read", path=tmp) == "allow"  # the session reads it
+    assert hook(root, tool="Read", path=tmp, agent=AUTHOR) == "deny"
+    for other in ("/tmp/other-app/secret.txt", f"/tmp/claude-{os.getuid()}/-Users-someone-else/s/tasks/x.output"):
+        assert hook(root, tool="Read", path=other) == "deny", other  # the rest of /tmp stays closed
+
+
+def test_hook_refuses_absolute_glob_outside_the_repo(project):
+    import json
+    import subprocess
+    import sys
+
+    from conftest import HOOK
+
+    root = project()
+    for pattern, want in ((f"{root.parent.parent}/**/*.md", 2), (f"{root}/docs/**/*.md", 0), ("**/*.md", 0)):
+        event = {"tool_name": "Glob", "tool_input": {"pattern": pattern}, "cwd": str(root), "permission_mode": "acceptEdits",
+                 "agent_id": "a1", "agent_type": AUTHOR}
+        r = subprocess.run([sys.executable, "-I", "-B", str(HOOK)], input=json.dumps(event), text=True, capture_output=True,
+                           env={"CLAUDE_PROJECT_DIR": str(root), "PATH": "/usr/bin:/bin"}, check=False)
+        assert r.returncode == want, pattern
