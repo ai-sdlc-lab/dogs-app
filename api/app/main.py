@@ -1,6 +1,5 @@
 import os
 import re
-import uuid
 from functools import cache
 from pathlib import Path, PurePosixPath
 
@@ -8,14 +7,16 @@ import boto3
 from botocore.config import Config
 from botocore.exceptions import BotoCoreError, ClientError
 from fastapi import APIRouter, FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from mangum import Mangum
 
 from app import s3_limits
+from app.rejection import rejected, request_id
 
 PREFIX = "dogs/"  # images live at s3://$DOGS_BUCKET/dogs/<breed>/<file>
-BREED = re.compile(r"^[a-z0-9-]{1,40}$")
+BREED = re.compile(r"[a-z0-9-]{1,40}")  # always used with fullmatch: `$` would accept a trailing newline
 URL_TTL = 900  # presigned image URLs expire after 15 minutes; the bucket stays private
 
 router = APIRouter()
@@ -55,7 +56,7 @@ def list_dogs(breed: str | None = None) -> list[dict]:
             for page in s3().get_paginator("list_objects_v2").paginate(Bucket=bucket, Prefix=prefix):
                 for obj in page.get("Contents", []):
                     parts = obj["Key"].removeprefix(PREFIX).split("/")
-                    if len(parts) != 2 or not BREED.match(parts[0]) or not parts[1]:
+                    if len(parts) != 2 or not BREED.fullmatch(parts[0]) or not parts[1]:
                         continue
                     url = s3().generate_presigned_url(
                         "get_object", Params={"Bucket": bucket, "Key": obj["Key"]}, ExpiresIn=URL_TTL
@@ -67,11 +68,13 @@ def list_dogs(breed: str | None = None) -> list[dict]:
 
 
 async def s3_unavailable(request: Request, _exc: S3Unavailable) -> JSONResponse:
-    context = request.scope.get("aws.context")  # set by Mangum; never a request header or query value
-    request_id = str(getattr(context, "aws_request_id", "") or "") or str(uuid.uuid4())
     return JSONResponse(
-        status_code=503, content={"error": "dependency_unavailable", "request_id": request_id}
+        status_code=503, content={"error": "dependency_unavailable", "request_id": request_id(request)}
     )
+
+
+async def invalid_request(request: Request, _exc: RequestValidationError) -> JSONResponse:
+    return rejected(request, "invalid_request")  # the framework's default 422 body is never sent
 
 
 @router.get("/api/health")
@@ -85,9 +88,9 @@ def dogs():
 
 
 @router.get("/api/dogs/{breed}")
-def dogs_by_breed(breed: str):
-    if not BREED.match(breed):
-        raise HTTPException(status_code=404, detail="unknown breed")
+def dogs_by_breed(breed: str, request: Request):
+    if not BREED.fullmatch(breed):
+        return rejected(request, "invalid_breed")
     found = list_dogs(breed)
     if not found:
         raise HTTPException(status_code=404, detail="unknown breed")
@@ -181,6 +184,7 @@ def build(web_dir: Path):
     api = FastAPI(title="dogs-app", docs_url=None, redoc_url=None, openapi_url=None)
     api.include_router(router)
     api.add_exception_handler(S3Unavailable, s3_unavailable)
+    api.add_exception_handler(RequestValidationError, invalid_request)
     if web_dir.is_dir():
         api.mount("/", StaticFiles(directory=web_dir, html=True), name="web")
     return security_headers(api)
