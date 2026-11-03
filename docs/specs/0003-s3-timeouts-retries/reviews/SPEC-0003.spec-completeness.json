@@ -1,0 +1,14 @@
+{
+ "reviewer": "spec-completeness",
+ "stage": "spec",
+ "change": "0003",
+ "model": "claude-haiku-4-5-20251001",
+ "round": 3,
+ "appsec_sha": "b6fc1ac2a020732ba4da5c04102e1b1faf5cf456",
+ "files": {
+  "docs/specs/0003-s3-timeouts-retries/SPEC-0003.md": "dd0e0e1b5bbf2f1769c8e299695b671429a89f188174e266a735fd0233eff947"
+ },
+ "produced": {},
+ "verdict": "allow",
+ "findings": []
+}

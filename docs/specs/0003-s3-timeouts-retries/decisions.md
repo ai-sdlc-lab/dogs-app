@@ -8,3 +8,7 @@
 | intent | No `Retry-After` header | SR-006 does not require it. |
 | intent | AUD-001 (malformed breed gives 404 not 422, SR-001) dropped by the auditor in round 2 | Unchanged existing behaviour, out of scope here. |
 | intent | A 503 leaves no log record; follow-up suggested | Logging is out of scope (AUD-004). |
+| spec | Accepted risk: an S3 failure (503) leaves no log record | Adding an SR-024 dependency-failure event is a separate change; detection route is an operator alarm on Lambda errors and duration (infra, outside this change). Follow-up change suggested. Agent decision, no owner input. |
+| spec | Retry mode `standard`; "2 retries" means at most 3 attempts | Pins SR-006's "at most 2 retries" unambiguously (ARC-003). |
+| spec | `request_id` is a correlation ID, not a token; no crypto inventory entry | Resolves AUD-004 (SR-021). |
+| spec | Deadline bounds an in-flight attempt, not only new attempts | Slow-drip responses never trip the per-read timeout (ARC-001). |
