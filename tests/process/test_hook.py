@@ -242,9 +242,15 @@ def test_hook_refuses_reads_outside_the_repo(project):
         assert hook(root, tool=tool, path=outside) == "deny", tool
         assert hook(root, tool=tool, path=str(root / "docs/specs/0007-demo/PLAN-0007.md"), agent=AUTHOR) == "allow", tool
     assert hook(root, tool="Read", path="docs/specs/0007-demo/PLAN-0007.md", agent="security-architect") == "allow"
-    tmp = "/tmp/claude-501/x/tasks/b1.output"  # where Claude Code writes background command output
+    import os
+    import re
+
+    own = os.path.join(os.path.realpath("/tmp"), f"claude-{os.getuid()}", re.sub(r"[^A-Za-z0-9-]", "-", str(root.resolve())))
+    tmp = own + "/s1/tasks/b1.output"  # where Claude Code writes this repo's background command output
     assert hook(root, tool="Read", path=tmp) == "allow"  # the session reads it
     assert hook(root, tool="Read", path=tmp, agent=AUTHOR) == "deny"
+    for other in ("/tmp/other-app/secret.txt", f"/tmp/claude-{os.getuid()}/-Users-someone-else/s/tasks/x.output"):
+        assert hook(root, tool="Read", path=other) == "deny", other  # the rest of /tmp stays closed
 
 
 def test_hook_refuses_absolute_glob_outside_the_repo(project):
