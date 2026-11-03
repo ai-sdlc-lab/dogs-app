@@ -6,9 +6,32 @@
  "round": 3,
  "appsec_sha": "e4e41f610da2532483048bad3f2c5a82411e4569",
  "files": {
-  "docs/specs/0004-invalid-input-422/PLAN-0004.md": "77acfdcb7f713ccad1f10c65e0901fb906958dbc39bae6038f0df6224f7eff54"
+  "docs/specs/0004-invalid-input-422/PLAN-0004.md": "e8b039587d8729168ed16b5dd381d2606237dec26ed2973564eb0ecbd6c867e5"
  },
  "produced": {},
  "verdict": "allow",
- "findings": []
+ "findings": [
+  {
+   "id": "ARC-003",
+   "severity": "low",
+   "sr_ref": "N/A",
+   "file": "docs/specs/0004-invalid-input-422/PLAN-0004.md",
+   "line": 7,
+   "evidence": "Order of work names only three A-01 tests as needing a rejected request (`test_rejected_request_id_from_lambda_context`, `test_rejected_log_request_id_matches_body`, `test_request_id_survives_malformed_aws_context`). A-01 also owns `test_rejected_request_id_generated_when_missing`, `test_generated_request_id_is_128_bit_hex` and `test_rejected_request_id_ignores_request_headers`. Their names suggest they also drive a rejected request, but the plan doesn't say whether they run in A-01 or A-02/A-03.",
+   "status": "carried",
+   "blocking": false,
+   "summary": "A-01 test readiness list incomplete for rejected-request tests"
+  },
+  {
+   "id": "ARC-004",
+   "severity": "info",
+   "sr_ref": "N/A",
+   "file": "docs/specs/0004-invalid-input-422/PLAN-0004.md",
+   "line": 36,
+   "evidence": "The plan says `test_encoded_slash_and_empty_breed_stay_404` accepts 307 or 404 for `/api/dogs/`. It also says the SPEC 1.6 wording (\"404\") is left for the owner to correct. The plan therefore knowingly differs from SPEC 1.6 for the empty-breed case.",
+   "status": "carried",
+   "blocking": false,
+   "summary": "Plan deviates from SPEC 1.6 on the empty-breed 307; documented"
+  }
+ ]
 }

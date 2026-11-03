@@ -1,0 +1,21 @@
+{
+ "reviewer": "security-code-reviewer",
+ "stage": "code",
+ "change": "0004",
+ "model": "claude-sonnet-5-5",
+ "round": 3,
+ "appsec_sha": "e4e41f610da2532483048bad3f2c5a82411e4569",
+ "files": {
+  "Makefile": "67b02c09419362a730d4638ad1b54900ea04ee04206e9e7629fa7330265c1c66",
+  "api/app/main.py": "c89d8cec8019891149e585b9c5f2a958bc49bdfb203d6193e1c9644ae1917758",
+  "api/app/rejection.py": "3893f108158caf256d05d8775b61ae1eda75c0f501a5aeb6b0ad3d1943c5643a",
+  "api/tests/test_build_info.py": "575b42b7950b4c39e9950f5faffb3eb6620906ccc7bc8d5b5df05aab5829961f",
+  "api/tests/test_dogs_routes.py": "988647e3d7550e26639d354bc15aeb90e6891f9f2ef5dfa6ce308c24b4595c0a",
+  "api/tests/test_headers.py": "ca623b313b94802eb4a0c786e5ee125d8c3c44962e6e8c9cf41699e952ebdc4a",
+  "api/tests/test_invalid_input.py": "0a09623e8f51c218b7bc6679389ed7e90d8a1d65704b119a359ff4c8b8e3be4e",
+  "api/tests/test_s3_503.py": "85d69315144e56abeacc3e4238a661554e833edefe628b56c502b25ef36ebca0"
+ },
+ "produced": {},
+ "verdict": "allow",
+ "findings": []
+}

@@ -118,7 +118,7 @@ CASES = [
     ("GET", "/api/dogs", {}, 200, JSON, False),
     ("GET", "/api/dogs/pug", {}, 200, JSON, False),
     ("GET", "/api/dogs/husky", {}, 404, JSON, False),
-    ("GET", "/api/dogs/Bad_Breed", {}, 404, JSON, False),
+    ("GET", "/api/dogs/Bad_Breed", {}, 422, JSON, False),
     ("GET", "/api/nope", {}, 404, JSON, False),
     ("GET", "/nope", {}, 404, JSON, False),
     ("GET", "/assets/missing.js", {}, 404, JSON, False),

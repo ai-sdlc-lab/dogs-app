@@ -2,8 +2,9 @@
 BUCKET := sdlc-lab-app-dogs-dev-992382408037
 PY ?= $(if $(wildcard .venv/bin/python),$(CURDIR)/.venv/bin/python,python3.14)  # make venv once
 TF := terraform -chdir=infra
+BUILD_INFO ?= build/lambda/app/build_info.json
 
-.PHONY: venv fmt test test-api test-process test-web lint build plan apply destroy seed run-api
+.PHONY: venv fmt test test-api test-process test-web lint build build-info plan apply destroy seed run-api
 
 venv:
 	python3.14 -m venv .venv
@@ -40,8 +41,14 @@ build:
 	$(PY) -m pip install -q --target build/lambda --platform manylinux2014_aarch64 \
 		--implementation cp --python-version 3.14 --only-binary=:all: --require-hashes -r api/requirements.txt
 	cp -R api/app build/lambda/app
+	$(MAKE) build-info
 	cp -R web/dist build/lambda/web
 	cd build/lambda && find . -name '__pycache__' -prune -exec rm -rf {} + && zip -qr ../lambda.zip .
+
+# Change 0004: the git SHA the Lambda log events carry as `version`. Needs only git.
+build-info:
+	mkdir -p $(dir $(BUILD_INFO))
+	printf '{"sha": "%s"}\n' "$$(git rev-parse HEAD)" > $(BUILD_INFO)
 
 plan:
 	$(TF) init -input=false

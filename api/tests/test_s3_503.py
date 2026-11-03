@@ -1,7 +1,7 @@
 """S3 failure answers 503 with a fixed body (change 0003, PLAN-0003 T-04, T-05, T-06, T-12)."""
 
 import logging
-import uuid
+import re
 
 import pytest
 from botocore.exceptions import BotoCoreError, ReadTimeoutError
@@ -125,7 +125,7 @@ def test_503_request_id_from_lambda_context(monkeypatch, clock):
 def test_503_request_id_generated_when_missing(monkeypatch, clock):
     web, _ = failing(monkeypatch, clock)
     ids = [web.get("/api/dogs").json()["request_id"] for _ in range(2)]
-    assert all(uuid.UUID(i).version == 4 for i in ids)
+    assert all(re.fullmatch(r"[0-9a-f]{32}", i) for i in ids)
     assert ids[0] != ids[1]
 
 
@@ -141,9 +141,9 @@ def test_503_ignores_request_id_header(monkeypatch, clock):
 # --- unchanged behaviour ------------------------------------------------------------------------
 
 
-def test_malformed_breed_404_without_s3_call(monkeypatch, clock):
+def test_dogs_by_breed_rejects_without_s3_call(monkeypatch, clock):
     web, stub = failing(monkeypatch, clock)
-    assert web.get("/api/dogs/Bad_Breed").status_code == 404
+    assert web.get("/api/dogs/Bad_Breed").status_code == 422
     assert stub.calls == []
 
 

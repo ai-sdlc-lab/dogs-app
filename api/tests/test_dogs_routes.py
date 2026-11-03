@@ -1,3 +1,5 @@
+"""API behaviour tests: listing, breed lookup and rejected input."""
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -49,9 +51,20 @@ def test_by_breed(client):
     assert [d["breed"] for d in client.get("/api/dogs/pug").json()] == ["pug"]
 
 
-@pytest.mark.parametrize("breed", ["husky", "Bad_Breed", "..", "a" * 41])
-def test_unknown_or_invalid_breed_is_404(client, breed):
-    assert client.get(f"/api/dogs/{breed}").status_code == 404
+def test_unknown_valid_breed_stays_404(client):
+    r = client.get("/api/dogs/husky")
+    assert (r.status_code, r.json()) == (404, {"detail": "unknown breed"})
+
+
+def test_listing_skips_key_with_trailing_newline(client, monkeypatch):
+    class NewlineS3(FakeS3):
+        def paginate(self, Bucket, Prefix):
+            return [{"Contents": [{"Key": k} for k in ("dogs/pug\n/1.jpg", "dogs/pug/2.jpg")]}]
+
+    monkeypatch.setattr(main, "s3", NewlineS3)
+    only = [{"breed": "pug", "url": "https://signed.example/dogs/pug/2.jpg"}]
+    assert client.get("/api/dogs").json() == only
+    assert main.list_dogs("pug") == only
 
 
 def test_presigned_urls_use_regional_endpoint(monkeypatch):
