@@ -1,0 +1,14 @@
+{
+ "reviewer": "security-architect",
+ "stage": "plan",
+ "change": "0003",
+ "model": "claude-sonnet-5-5",
+ "round": 3,
+ "appsec_sha": "b6fc1ac2a020732ba4da5c04102e1b1faf5cf456",
+ "files": {
+  "docs/specs/0003-s3-timeouts-retries/PLAN-0003.md": "d46927695a02254dcfc0c8317b69799a8911b0beee3c68dab2b60b326b3fe278"
+ },
+ "produced": {},
+ "verdict": "allow",
+ "findings": []
+}
