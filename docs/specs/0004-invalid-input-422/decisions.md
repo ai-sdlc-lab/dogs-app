@@ -6,5 +6,9 @@
 | intent | Error code `invalid_input` in the 422 body; log `reason` `invalid_breed`. | Stable, short codes with no request data. |
 | intent | `http.path` in `input.rejected` is the real request path without query string, JSON-encoded, truncated to 200 characters. | A route-pattern-only value was a deviation from SR-024 (AUD-001); the session cannot accept a MUST deviation. |
 | intent | Source IP is logged for security monitoring only, kept 7 days. | AUD-003 (SR-025). |
+| spec | Log `service` is `dogs-app`; `version` is the build's git SHA embedded in the Lambda package. | Needed for SR-024; the open questions had no owner-only answer (AUD-001/ARC-002). |
+| spec | Fallback request ID gets 128 random bits (hex from a CSPRNG), not UUID v4. | SR-021 is a MUST; no deviation allowed (AUD-001). |
+| spec | SPEC-001 and ARC-005 got a fourth author pass beyond the 3 rounds; both were small wording fixes and the gate offers no exception for plain `block` findings. | The only way to close them. |
+| spec | ARC-001 (medium, no log-volume alarm for the new per-request log cost) stays open after the last round. The spec bounds the cost and points to #38 for the alarm; an alarm is an infrastructure change outside this change's scope. The gate classes it `block`, which has no exception route. | Owner decides at the merge to `main`. |
 | intent | AUD-002 (404 body not the SR-005 body) is old debt, left to #30. | Not altered by this change. |
 | intent | Owner questions were answered by the session with the defaults above. | The intent author's open questions had conservative defaults; the run asks nothing of the owner. |
