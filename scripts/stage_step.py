@@ -335,10 +335,17 @@ def ship(a) -> int:
         return out({"ok": False, "pr": num, "failed": [c["name"] for c in failed], "logs": logs})
     r = run("gh", "pr", "merge", num, "--merge", "--delete-branch")
     state = run("gh", "pr", "view", num, "--json", "state", "-q", ".state").stdout.strip()
-    if r.returncode or state != "MERGED":
+    if state != "MERGED":
         return out({"ok": False, "pr": num, "errors": [f"merge failed (state {state}): {r.stderr.strip()[-300:]}"]})
+    # The PR state decides: gh exits non-zero when only the branch delete fails (e.g. GitHub 503).
+    for _ in range(3):
+        if run("git", "ls-remote", "--exit-code", "--heads", "origin", branch).returncode != 0:
+            break
+        run("git", "push", "origin", "--delete", branch)
+        time.sleep(5)
     run("git", "checkout", feat)
     run("git", "pull", "--ff-only")
+    run("git", "branch", "-D", branch)  # gh skips this too when its remote delete fails
     py("scripts/stage_log.py", "pr.merged", "success", f"change={a.change}", f"stage={a.stage}")
     return out({"ok": True, "pr": num, "merged_into": feat, "merged_red": [c["name"] for c in failed]})
 
