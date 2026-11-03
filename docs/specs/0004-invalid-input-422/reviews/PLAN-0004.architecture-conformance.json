@@ -1,0 +1,14 @@
+{
+ "reviewer": "architecture-conformance",
+ "stage": "plan",
+ "change": "0004",
+ "model": "claude-sonnet-5-5",
+ "round": 3,
+ "appsec_sha": "e4e41f610da2532483048bad3f2c5a82411e4569",
+ "files": {
+  "docs/specs/0004-invalid-input-422/PLAN-0004.md": "77acfdcb7f713ccad1f10c65e0901fb906958dbc39bae6038f0df6224f7eff54"
+ },
+ "produced": {},
+ "verdict": "allow",
+ "findings": []
+}
