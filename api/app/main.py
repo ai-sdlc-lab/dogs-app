@@ -190,3 +190,4 @@ def build(web_dir: Path):
 WEB_DIR = Path(os.environ.get("WEB_DIR", Path(__file__).parent.parent / "web"))
 app = build(WEB_DIR)
 handler = Mangum(app, lifespan="off")
+# rehearsal 9999: no behaviour change
