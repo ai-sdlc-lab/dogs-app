@@ -64,7 +64,7 @@ def exception_ids(text: str) -> set[str]:
 
 
 def decide_first(paths: list[str], root: Path, base_exceptions: str) -> list[str]:
-    open_items, deferred = [], []
+    open_items, deferred, untracked = [], [], []
     for p in paths:
         if "/reviews/" in p and p.endswith(".json") and (root / p).is_file():
             try:
@@ -75,17 +75,29 @@ def decide_first(paths: list[str], root: Path, base_exceptions: str) -> list[str
                     for f in doc.get("findings", [])
                     if f.get("status") == "open"
                 ]
-                deferred += [
-                    f"#{inert(f.get('issue'))} {inert(f.get('sr_ref'))} [{inert(f.get('severity'))}] {inert(f.get('file'))} "
-                    f"({inert(doc.get('reviewer'))} {inert(f.get('id'))})"
-                    for f in doc.get("findings", [])
-                    if f.get("status") == "deferred"
-                ]
+                for f in doc.get("findings", []):
+                    if f.get("status") != "deferred":
+                        continue
+                    what = inert(f.get("summary") or f.get("evidence", ""))
+                    ref = f"{inert(f.get('sr_ref'))} [{inert(f.get('severity'))}] {what} ({inert(doc.get('reviewer'))} {inert(f.get('id'))})"
+                    (deferred if f.get("issue") else untracked).append(f"#{inert(f.get('issue'))} {ref}" if f.get("issue") else ref)
             except (ValueError, AttributeError, TypeError):
                 open_items.append(f"malformed report: {inert(p)}")
     lines = ["## Decide at this merge", "", "**Open findings (high/critical, not fixed in 3 rounds)**", ""]
     lines += [f"- {x}" for x in open_items] or ["- none"]
     lines += ["", "**Old debt moved to issues (not blocking)**", ""] + ([f"- {x}" for x in deferred] or ["- none"])
+    lines += ["", "**Old debt, not tracked (low / info, no issue)**", ""] + ([f"- {x}" for x in untracked] or ["- none"])
+    lines += ["", "**Open questions for the owner (from the change's documents)**", ""]
+    questions = []
+    for p in paths:
+        if re.fullmatch(r"docs/specs/[0-9]{4}-[a-z0-9-]+/(INT|SPEC|PLAN)-[0-9]{4}\.md", p) and (root / p).is_file():
+            inside = False
+            for line in (root / p).read_text().splitlines():
+                if line.startswith("#"):
+                    inside = "open question" in line.lower()
+                elif inside and line.strip():
+                    questions.append(f"{inert(p.rsplit('/', 1)[-1])}: {inert(line.strip().removeprefix('- '))}")
+    lines += [f"- {q}" for q in questions[:30]] or ["- none"]
     ex = root / EXCEPTIONS
     new = sorted(exception_ids(ex.read_text()) - exception_ids(base_exceptions)) if ex.is_file() else []
     lines += ["", f"**Exceptions added in this PR (`{EXCEPTIONS}`)**", ""]

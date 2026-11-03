@@ -65,3 +65,20 @@ def test_ship_uses_only_an_open_pr(monkeypatch):
     monkeypatch.setattr(stage_step, "run", fake)
     assert stage_step.open_pr("stage/0003-intent") is None  # merged/closed PRs of an earlier attempt don't count
     assert calls[0][:6] == ("gh", "pr", "list", "--head", "stage/0003-intent", "--state") and "open" in calls[0]
+
+
+def test_old_debt_from_an_earlier_round_is_kept():
+    """Change 0003: SR-001 was reported as old debt in round 1, not repeated later, and lost."""
+    old = f(id="AUD-001", severity="medium", sr_ref="SR-001", pre_existing=True, summary="invalid input returns 404 not 422")
+    ledger = {stage_step.debt_key(old): old}
+    later = [f(id="AUD-001", severity="low", sr_ref="NEW", evidence="A different finding that reuses the ID AUD-001.")]
+    out = stage_step.with_ledger(later, ledger)
+    assert [x["id"] for x in out] == ["AUD-001", "AUD-002"]
+    assert out[1] | {} == out[1] and out[1]["status"] == "deferred" and out[1]["pre_existing"] and out[1]["sr_ref"] == "SR-001"
+    assert stage_step.with_ledger([old | {"status": "deferred"}], ledger) == [old | {"status": "deferred"}]  # not doubled
+
+
+def test_issue_title_uses_summary_or_a_clean_cut():
+    assert stage_step.issue_title(f(sr_ref="SR-001", summary="invalid input returns 404 not 422")) == "security-finding: SR-001 invalid input returns 404 not 422"
+    t = stage_step.issue_title(f(sr_ref="SR-024", evidence="word " * 40))
+    assert len(t) <= 110 and t.endswith(" …") and "wor …" not in t

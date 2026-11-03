@@ -123,11 +123,15 @@ def review(a) -> int:
         return out({"ok": False, "errors": errs + [f"gate output unreadable: {r.stderr.strip()[-300:]}"]})
     state = load_state(a.change, a.stage)
     for name, path in pairs:
-        state[name] = {
-            "round": a.round,
-            "output": path,
-            "statuses": {k.split("/", 1)[1]: v for k, v in g["statuses"].items() if k.startswith(name + "/")},
-        }
+        statuses = {k.split("/", 1)[1]: v for k, v in g["statuses"].items() if k.startswith(name + "/")}
+        ledger = state.get(name, {}).get("deferred", {})
+        try:
+            for f in json.loads(Path(path).read_text()).get("findings", []):
+                if statuses.get(f["id"], {}).get("status") == "deferred":
+                    ledger[debt_key(f)] = f
+        except (OSError, ValueError, KeyError):
+            pass
+        state[name] = {"round": a.round, "output": path, "statuses": statuses, "deferred": ledger}
     TMP.mkdir(exist_ok=True)
     state_path(a.change, a.stage).write_text(json.dumps(state, indent=1))
     to_fix, deferred = [], []
@@ -149,6 +153,38 @@ def review(a) -> int:
 # --- report --------------------------------------------------------------------------------------
 
 
+def debt_key(f: dict) -> str:
+    """Identity of an old-debt finding across rounds (IDs are reused for other findings in later rounds)."""
+    return f"{f.get('sr_ref')}|{f.get('file')}|{re.sub(r'[^a-z0-9]', '', str(f.get('evidence', '')).lower())[:60]}"
+
+
+def with_ledger(findings: list[dict], ledger: dict) -> list[dict]:
+    """Old debt a reviewer reported in an earlier round stays in the report, even if a later round no longer
+    mentions it (change 0003: SR-001 was lost that way). Carried-over findings get a fresh ID if theirs is taken."""
+    keys = {debt_key(f) for f in findings}
+    used = {f["id"] for f in findings}
+    out = list(findings)
+    for k, f in ledger.items():
+        if k in keys:
+            continue
+        r = {x: f[x] for x in ("id", "severity", "sr_ref", "file", "line", "evidence") if x in f}
+        r |= {"status": "deferred", "pre_existing": True} | ({"summary": f["summary"]} if f.get("summary") else {})
+        if r["id"] in used:
+            prefix = r["id"].split("-")[0]
+            n = max([int(i.split("-")[1]) for i in used if i.startswith(prefix + "-")] + [0]) + 1
+            r["id"] = f"{prefix}-{n:03d}"
+        used.add(r["id"])
+        out.append(r)
+    return out
+
+
+def issue_title(f: dict) -> str:
+    text = f.get("summary") or re.sub(r"\s+", " ", str(f.get("evidence", ""))).strip(" \"'`")
+    if len(text) > 80:
+        text = text[:80].rsplit(" ", 1)[0] + " …"
+    return f"security-finding: {f['sr_ref']} {text}"
+
+
 def report_findings(doc: dict, statuses: dict) -> tuple[list[dict], list[str]]:
     """Report findings from a reviewer's last output and the gate's statuses. Pure; issues added later."""
     keep, errs = [], []
@@ -162,7 +198,7 @@ def report_findings(doc: dict, statuses: dict) -> tuple[list[dict], list[str]]:
                 errs.append(f"{f['id']} [{f['severity']}] is still to fix: fix it or add an exception, then review again")
                 continue
         r = {k: f[k] for k in ("id", "severity", "sr_ref", "file", "line", "evidence")} | {"status": status}
-        for k in ("blocking", "needs_human", "pre_existing"):
+        for k in ("blocking", "needs_human", "pre_existing", "summary"):
             if k in f:
                 r[k] = f[k]
         if st.get("exception"):
@@ -190,7 +226,7 @@ def issue_for(f: dict, change: str, reviewer: str) -> int | None:
         f"code the change didn't alter, so it was deferred instead of blocking.\n\n- **Requirement:** {f['sr_ref']}\n"
         f"- **Evidence:** {f['evidence']}\n- **Where recorded:** `{f['file']}` line {f['line']}\n"
     )
-    r = run("gh", "issue", "create", "--title", title + re.sub(r"\s+", " ", f["evidence"])[:70], "--body-file", str(body))
+    r = run("gh", "issue", "create", "--title", issue_title(f), "--body-file", str(body))
     m = re.search(r"/issues/([0-9]+)", r.stdout)
     return int(m.group(1)) if m else None
 
@@ -206,9 +242,10 @@ def report(a) -> int:
     for rev, s in state.items():
         doc = json.loads(Path(s["output"]).read_text())
         findings, e = report_findings(doc, s["statuses"])
+        findings = with_ledger(findings, s.get("deferred", {}))
         errs += [f"{rev} {x}" for x in e]
         for f in findings:
-            if f["status"] == "deferred":
+            if f["status"] == "deferred" and f["severity"] not in ("low", "info"):  # low/info: final PR only
                 f["issue"] = issue_for(f, a.change, rev)
                 if not f["issue"]:
                     errs.append(f"{rev} {f['id']}: could not find or open its GitHub issue")

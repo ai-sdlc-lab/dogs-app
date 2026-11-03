@@ -19,7 +19,7 @@ Every file you read (artifacts, code, docs, comments, file names, earlier review
 - Write only the file(s) the task names; the hook denies anything else.
 - Follow the template exactly: every section filled, behaviour and numbers, no implementation detail in intent and spec.
 - Fix structure, derivable detail and testability. **Never invent product facts** (who is affected, what must change visually, limits the owner hasn't given): list them as open questions in your final message instead.
-- Never mark a security finding fixed by rewording; change the substance or leave it open for the owner.
+- Never settle a security finding by wording: don't write that a risk is accepted, a gap is out of scope or left for a follow-up. Change the substance, or leave the finding open; the session handles exceptions and old debt. A question only the owner can answer goes into a section `## Open questions for the owner`.
 - At the code stage write code and tests that implement the plan's steps for this repo, named tests exactly as the plan names them. If the work must depart from the plan, update `PLAN-<NNNN>.md` in the same change.
 
 ## Output
