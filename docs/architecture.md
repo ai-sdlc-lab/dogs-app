@@ -1,4 +1,4 @@
-# Architecture (as built; as of change 0003)
+# Architecture (as built; as of change 0004)
 
 ```
 browser ──HTTPS──> Lambda function URL (auth NONE, public, read-only)
@@ -11,7 +11,9 @@ browser ──HTTPS──> Lambda function URL (auth NONE, public, read-only)
 
 One outermost ASGI wrapper sets the SR-004 security headers on every response the app produces (CSP image host from `DOGS_BUCKET`/`AWS_REGION`, fail closed); `web/src/render.ts` holds the page rendering and the image-URL check.
 
-S3 calls are bounded (`api/app/s3_limits.py`, SR-006): 3 s connect and 5 s read per attempt, 3 attempts in total (standard retry mode), and an 8 s deadline per request that also cuts a running attempt (slow drip), a backoff wait and any attempt that would start late; the function timeout stays 10 s. Any S3 failure on `/api/dogs` and `/api/dogs/{breed}` answers `503` with `{"error": "dependency_unavailable", "request_id": ...}` (Lambda request ID, else a generated UUID), no fallback data. Failures are not logged yet (SR-024 follow-up).
+S3 calls are bounded (`api/app/s3_limits.py`, SR-006): 3 s connect and 5 s read per attempt, 3 attempts in total (standard retry mode), and an 8 s deadline per request that also cuts a running attempt (slow drip), a backoff wait and any attempt that would start late; the function timeout stays 10 s. Any S3 failure on `/api/dogs` and `/api/dogs/{breed}` answers `503` with `{"error": "dependency_unavailable", "request_id": ...}` (Lambda request ID, else a generated 32-character lowercase hex ID from 128 random bits), no fallback data.
+
+Invalid input (a `breed` that is not 1 to 40 characters of `a-z0-9-` as a whole value, or any framework validation failure) answers `422` with `{"error": "invalid_input", "request_id": ...}` and never the framework's default body; it writes one `input.rejected` JSON line (SR-024 fields, `source_ip` from the Lambda event, never from headers; path cut to 200 characters, no query string) to stdout, which goes to the CloudWatch log group. `version` is the git SHA from `build_info.json`, written into the Lambda zip by `make build-info`. Only rejected input (422, `input.rejected`) is logged; S3 failures (503) and other errors are not logged yet (#38).
 
 ## Trust boundaries
 1. Internet → function URL: unauthenticated, any caller.
@@ -25,4 +27,4 @@ S3 calls are bounded (`api/app/s3_limits.py`, SR-006): 3 s connect and 5 s read 
 Images (CC0 seed set) and their breed (from the key). No users, no personal data, no writes.
 
 ## Known gaps (lab-admin BASELINE)
-No CDN/WAF; shared account Lambda concurrency limit of 10 (no reserved concurrency); function URL hostname changes on rebuild; current code predates SR-024 log format and SR-027 hashed locks.
+No CDN/WAF; shared account Lambda concurrency limit of 10 (no reserved concurrency); function URL hostname changes on rebuild; only the `input.rejected` event follows the SR-024 log format (the other mandatory events stay with #38); current code predates SR-027 hashed locks.

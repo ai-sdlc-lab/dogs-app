@@ -1,0 +1,16 @@
+{
+ "reviewer": "security-architect",
+ "stage": "spec",
+ "change": "0004",
+ "model": "claude-sonnet-5-5",
+ "round": 3,
+ "appsec_sha": "e4e41f610da2532483048bad3f2c5a82411e4569",
+ "files": {
+  "docs/specs/0004-invalid-input-422/SPEC-0004.md": "c73ed3243118d1df4aa1409a243d1f1893d4f070f829367127c659fd13e98f12"
+ },
+ "produced": {
+  "docs/specs/0004-invalid-input-422/THREAT-0004.md": "ea2e717c708fbcd71c3a6a62b2a07abea16e428f5e6b959ce8f99e4552612db4"
+ },
+ "verdict": "allow",
+ "findings": []
+}

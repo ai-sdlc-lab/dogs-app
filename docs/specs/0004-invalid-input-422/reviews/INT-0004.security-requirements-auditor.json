@@ -1,0 +1,26 @@
+{
+ "reviewer": "security-requirements-auditor",
+ "stage": "intent",
+ "change": "0004",
+ "model": "claude-sonnet-5-5",
+ "round": 3,
+ "appsec_sha": "e4e41f610da2532483048bad3f2c5a82411e4569",
+ "files": {
+  "docs/specs/0004-invalid-input-422/INT-0004.md": "330f1c6d4ba722a07f55b59a32cbb258ee2480b98c41296d01ef8c6c52ebb6ef"
+ },
+ "produced": {},
+ "verdict": "allow",
+ "findings": [
+  {
+   "id": "AUD-002",
+   "severity": "low",
+   "sr_ref": "SR-005",
+   "file": "docs/specs/0004-invalid-input-422/INT-0004.md",
+   "line": 26,
+   "evidence": "\"A well-formed breed with no images keeps `404` ... Its body and the unknown-route `404` bodies are not changed here (that is #30).\" The 404 body is `{\"detail\": \"unknown breed\"}`, not the SR-005 body.",
+   "status": "deferred",
+   "pre_existing": true,
+   "summary": "404 responses do not use the standard SR-005 error body"
+  }
+ ]
+}

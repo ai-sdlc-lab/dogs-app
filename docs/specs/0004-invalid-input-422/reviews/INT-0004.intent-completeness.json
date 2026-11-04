@@ -1,0 +1,14 @@
+{
+ "reviewer": "intent-completeness",
+ "stage": "intent",
+ "change": "0004",
+ "model": "claude-haiku-4-5-20251001",
+ "round": 1,
+ "appsec_sha": "e4e41f610da2532483048bad3f2c5a82411e4569",
+ "files": {
+  "docs/specs/0004-invalid-input-422/INT-0004.md": "330f1c6d4ba722a07f55b59a32cbb258ee2480b98c41296d01ef8c6c52ebb6ef"
+ },
+ "produced": {},
+ "verdict": "allow",
+ "findings": []
+}
