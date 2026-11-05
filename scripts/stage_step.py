@@ -113,7 +113,7 @@ def review(a) -> int:
         redactions += int(last) if last.isdigit() else 0
         if r.returncode:
             errs.append(f"{name}: {r.stderr.strip()[-400:]}")
-    gate_args = ["--repo", "dogs-app", "--exceptions", "security/exceptions.yml", "--redactions", str(redactions)]
+    gate_args = ["--repo", load_yaml(ROOT / "stages.yml")["repo"], "--exceptions", "security/exceptions.yml", "--redactions", str(redactions)]
     for name, path in pairs:
         gate_args += ["--reviewer", f"{name}={path}"]
     r = py(".appsec-baseline/gate/security_gate.py", *gate_args)

@@ -133,12 +133,11 @@ def test_security_yml_runs_web_tests_into_junit():
     ci_web = wf("ci.yml")["jobs"]["web"]
     ci_node = next(st for st in ci_web["steps"] if st.get("uses", "").startswith("actions/setup-node@"))
     assert len(node) == 1 and node[0]["uses"] == ci_node["uses"] and node[0]["with"]["node-version"] == "24"
-    web = next(st for st in steps if st.get("run") == "npm --prefix web test")
-    assert web["if"] == "always()"
-    merge = next(st for st in steps if st.get("name") == "Merge JUnit files")
-    assert merge["if"] == "always()" and "web/junit-web.xml" in merge["run"]
-    assert steps.index(node[0]) < steps.index(web) < steps.index(merge)
-    assert not any("npm ci" in st.get("run", "") for st in steps)  # the tests need no dependency
+    ci_test = next(st for st in steps if st.get("run") == "make ci-test")  # kit contract: one target, one junit.xml
+    assert steps.index(node[0]) < steps.index(ci_test)
+    target = (ROOT / "Makefile").read_text().split("\nci-test:\n", 1)[1].split("\n\n", 1)[0]
+    assert "npm --prefix web test || rc=1" in target and "junit.xml junit-workflow.xml junit-app.xml web/junit-web.xml" in target
+    assert "exit $$rc" in target and "npm ci" not in target  # every suite runs; the tests need no dependency
     script = json.loads((ROOT / "web/package.json").read_text())["scripts"]["test"]
     assert script.startswith("node --test --test-reporter=junit --test-reporter-destination=junit-web.xml ")
     assert "npm ci && npm run build && npm test" in run_text(ci_web)
