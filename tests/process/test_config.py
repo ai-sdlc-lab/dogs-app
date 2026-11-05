@@ -1,7 +1,6 @@
 import json
 import re
 
-import pytest
 from conftest import LOCK, ROOT, frontmatter, wf
 
 SETTINGS = json.loads((ROOT / ".claude/settings.json").read_text())
@@ -106,11 +105,6 @@ def test_no_workflow_uses_anthropic_or_claude_action():
     assert not (ROOT / ".github/workflows/author.yml").exists()
 
 
-def test_deploy_needs_dast():
-    jobs = wf("deploy.yml")["jobs"]
-    assert set(jobs["deploy"]["needs"]) == {"build", "dast"} and "security-tester" not in jobs
-
-
 # --- CODEOWNERS (D-09) -----------------------------------------------------------------------
 
 
@@ -130,15 +124,6 @@ def test_review_schema_reviewer_enum_matches_stages_yml():
     used = {r for s in stages.values() for r in s["reviewers"]} | set(stages["code"]["conditional"])
     enum = set(json.loads((ROOT / ".appsec-baseline/schemas/review-report.schema.json").read_text())["properties"]["reviewer"]["enum"])
     assert used == enum
-
-
-@pytest.mark.parametrize("kind", ["INT", "SPEC", "PLAN"])
-def test_templates_pass_structure_check(kind):
-    import structure
-
-    tpl = ROOT / ".claude/skills/stage/templates" / f"{kind}.md"
-    art = ROOT / "docs/specs/0001-local-stage-loop" / f"{kind}-0001.md"
-    assert structure.check(tpl, art) == []
 
 
 def test_skill_states_untrusted_input_rule():

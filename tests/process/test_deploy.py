@@ -4,6 +4,7 @@ the Lambda limits and EXC-001. The behaviour itself is proven on the release (za
 import json
 import re
 
+import pytest
 import yaml
 from conftest import ROOT, wf
 
@@ -158,3 +159,18 @@ def test_exc001_no_longer_covers_zap():
     assert exc["sr"] == ["SR-002", "SR-020", "SR-024"]
     assert exc["paths"] == [".github/workflows/deploy.yml"]
     assert (exc["approved_by"], exc["approved"]) == ("nkalexiou", "2026-10-27") and "expires" not in exc  # no expiry since 2026-11-02
+
+
+# Moved from test_config.py at the kit extraction: they read dogs-app's own deploy.yml and change 0001 documents.
+def test_deploy_needs_dast():
+    jobs = wf("deploy.yml")["jobs"]
+    assert set(jobs["deploy"]["needs"]) == {"build", "dast"} and "security-tester" not in jobs
+
+
+@pytest.mark.parametrize("kind", ["INT", "SPEC", "PLAN"])
+def test_templates_pass_structure_check(kind):
+    import structure
+
+    tpl = ROOT / ".claude/skills/stage/templates" / f"{kind}.md"
+    art = ROOT / "docs/specs/0001-local-stage-loop" / f"{kind}-0001.md"
+    assert structure.check(tpl, art) == []
