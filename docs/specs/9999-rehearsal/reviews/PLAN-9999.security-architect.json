@@ -1,0 +1,14 @@
+{
+ "reviewer": "security-architect",
+ "stage": "plan",
+ "change": "9999",
+ "model": "claude-sonnet-5-5",
+ "round": 1,
+ "appsec_sha": "e4e41f610da2532483048bad3f2c5a82411e4569",
+ "files": {
+  "docs/specs/9999-rehearsal/PLAN-9999.md": "10886fab0a0f3dd8e4071898c887288b7f829cf51fb0f5cc3c54eceea106066b"
+ },
+ "produced": {},
+ "verdict": "allow",
+ "findings": []
+}
