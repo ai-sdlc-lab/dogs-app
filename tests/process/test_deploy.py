@@ -4,6 +4,7 @@ the Lambda limits and EXC-001. The behaviour itself is proven on the release (za
 import json
 import re
 
+import pytest
 import yaml
 from conftest import ROOT, wf
 
@@ -133,12 +134,11 @@ def test_security_yml_runs_web_tests_into_junit():
     ci_web = wf("ci.yml")["jobs"]["web"]
     ci_node = next(st for st in ci_web["steps"] if st.get("uses", "").startswith("actions/setup-node@"))
     assert len(node) == 1 and node[0]["uses"] == ci_node["uses"] and node[0]["with"]["node-version"] == "24"
-    web = next(st for st in steps if st.get("run") == "npm --prefix web test")
-    assert web["if"] == "always()"
-    merge = next(st for st in steps if st.get("name") == "Merge JUnit files")
-    assert merge["if"] == "always()" and "web/junit-web.xml" in merge["run"]
-    assert steps.index(node[0]) < steps.index(web) < steps.index(merge)
-    assert not any("npm ci" in st.get("run", "") for st in steps)  # the tests need no dependency
+    ci_test = next(st for st in steps if st.get("run") == "make ci-test")  # kit contract: one target, one junit.xml
+    assert steps.index(node[0]) < steps.index(ci_test)
+    target = (ROOT / "Makefile").read_text().split("\nci-test:\n", 1)[1].split("\n\n", 1)[0]
+    assert "npm --prefix web test || rc=1" in target and "junit.xml junit-workflow.xml junit-app.xml web/junit-web.xml" in target
+    assert "exit $$rc" in target and "npm ci" not in target  # every suite runs; the tests need no dependency
     script = json.loads((ROOT / "web/package.json").read_text())["scripts"]["test"]
     assert script.startswith("node --test --test-reporter=junit --test-reporter-destination=junit-web.xml ")
     assert "npm ci && npm run build && npm test" in run_text(ci_web)
@@ -159,3 +159,18 @@ def test_exc001_no_longer_covers_zap():
     assert exc["sr"] == ["SR-002", "SR-020", "SR-024"]
     assert exc["paths"] == [".github/workflows/deploy.yml"]
     assert (exc["approved_by"], exc["approved"]) == ("nkalexiou", "2026-10-27") and "expires" not in exc  # no expiry since 2026-11-02
+
+
+# Moved from test_config.py at the kit extraction: they read dogs-app's own deploy.yml and change 0001 documents.
+def test_deploy_needs_dast():
+    jobs = wf("deploy.yml")["jobs"]
+    assert set(jobs["deploy"]["needs"]) == {"build", "dast"} and "security-tester" not in jobs
+
+
+@pytest.mark.parametrize("kind", ["INT", "SPEC", "PLAN"])
+def test_templates_pass_structure_check(kind):
+    import structure
+
+    tpl = ROOT / ".claude/skills/stage/templates" / f"{kind}.md"
+    art = ROOT / "docs/specs/0001-local-stage-loop" / f"{kind}-0001.md"
+    assert structure.check(tpl, art) == []

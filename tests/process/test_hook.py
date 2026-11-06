@@ -1,4 +1,5 @@
 import json
+import subprocess
 
 import pytest
 from conftest import hook
@@ -149,6 +150,22 @@ def test_hook_author_scope_comes_from_feature_branch_plan(project):
     plan = root / "docs/specs/0007-demo/PLAN-0007.md"
     plan.write_text(plan.read_text() + "| D-02 | `Makefile` | SR-002 | `test_y` |\n")  # edited in the working tree only
     assert hook(root, path="Makefile", agent=AUTHOR) == "deny"
+
+
+def test_hook_author_scope_uses_repo_name_from_stages_yml(project):
+    """Kit extraction: the PLAN section is the one named by `repo:` in stages.yml on the feature branch."""
+    root = project("stage/0007-code")
+    git = lambda *a: subprocess.run(["git", "-C", str(root), *a], check=True, capture_output=True)  # noqa: E731
+    git("checkout", "-q", "feature/0007-demo")
+    (root / "stages.yml").write_text("repo: other-app\n")
+    git("commit", "-qam", "rename")
+    git("checkout", "-q", "stage/0007-code")
+    assert hook(root, path="api/app/main.py", agent=AUTHOR) == "deny"  # no "## Repo: other-app" section
+    git("checkout", "-q", "feature/0007-demo")
+    (root / "stages.yml").write_text("version: 1\n")
+    git("commit", "-qam", "no repo")
+    git("checkout", "-q", "stage/0007-code")
+    assert hook(root, path="api/app/main.py", agent=AUTHOR) == "deny"  # missing name: fail-closed
 
 
 def test_hook_redacts_secrets_in_prompts(project):

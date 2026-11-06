@@ -32,6 +32,7 @@ def project(tmp_path):
         run("config", "user.email", "t@example.org")
         run("config", "user.name", "t")
         (root / "appsec-baseline.lock").write_text(LOCK + "\n")
+        (root / "stages.yml").write_text("repo: dogs-app\n")
         (root / ".claude").mkdir()
         stage_dir = root / ".appsec-baseline" / "stage"
         stage_dir.mkdir(parents=True)

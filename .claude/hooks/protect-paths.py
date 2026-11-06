@@ -137,7 +137,19 @@ def plan_files(root: Path, change: str) -> list[str]:
     text = subprocess.run(
         ["git", "-C", str(root), "show", f"{feature}:{rel}"], capture_output=True, text=True, check=False, timeout=10
     ).stdout  # the reviewed plan on the feature branch, never the working tree the author can edit
-    return [f for s in steps(text, "dogs-app") for f in s["files"] if "*" not in f.split("/")[0]]
+    repo = repo_name(root, feature)
+    if not repo:  # steps(text, "") would return every repo's section
+        return []
+    return [f for s in steps(text, repo) for f in s["files"] if "*" not in f.split("/")[0]]
+
+
+def repo_name(root: Path, ref: str) -> str:
+    """This project's name (`repo:` in stages.yml on ref); "" if missing, so no plan file matches (fail-closed)."""
+    text = subprocess.run(
+        ["git", "-C", str(root), "show", f"{ref}:stages.yml"], capture_output=True, text=True, check=False, timeout=10
+    ).stdout
+    m = re.search(r"^repo:\s*([A-Za-z0-9._-]+)\s*(#.*)?$", text, re.MULTILINE)
+    return m.group(1) if m else ""
 
 
 def git_lines(root: Path, *args: str) -> list[str]:
@@ -174,7 +186,7 @@ def check_file(root: Path, event: dict, rel: str, subagent: bool) -> None:
         if m and m["kind"] == "PLAN" and m["n"] == n:
             return  # the plan is updated in the same PR when the work departs from it
         if not any(glob_match(rel, f) for f in plan_files(root, n)):
-            deny(root, event, "author_scope", f"{rel} is not listed in the dogs-app section of PLAN-{n}.md")
+            deny(root, event, "author_scope", f"{rel} is not listed in this repo's section of PLAN-{n}.md")
         return
     if m and m["kind"].upper() in ("TRACE", "THREAT"):
         deny(root, event, "trace_threat", f"{rel} is written only by stage/write_artifact.py")

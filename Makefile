@@ -4,7 +4,7 @@ PY ?= $(if $(wildcard .venv/bin/python),$(CURDIR)/.venv/bin/python,python3.14)  
 TF := terraform -chdir=infra
 BUILD_INFO ?= build/lambda/app/build_info.json
 
-.PHONY: venv fmt test test-api test-process test-web lint build build-info plan apply destroy seed run-api
+.PHONY: venv fmt test ci-test test-api test-process test-web lint build build-info plan apply destroy seed run-api
 
 venv:
 	python3.14 -m venv .venv
@@ -23,6 +23,18 @@ test-web:
 # SDLC workflow tests (change 0001): hook, settings, agents, workflows, scripts. Needs .appsec-baseline/ (scripts/appsec_checkout.py).
 test-process:
 	$(PY) -I -B -m pytest -q -p no:cacheprovider tests/process
+
+# CI job `tests (workflow + app)`: every suite runs even if one fails; one junit.xml for the named-test check.
+# Frontend tests use built-in node:test, no npm ci (no dependency needed).
+ci-test:
+	python3 -I -m pip install --quiet --require-hashes -r tests/process/requirements.txt
+	python3 -I -m pip install --quiet --require-hashes -r api/requirements.txt -r api/requirements-dev.txt
+	rc=0; \
+	python3 -I -B -m pytest -q -p no:cacheprovider --junitxml=junit-workflow.xml tests/process || rc=1; \
+	(cd api && python3 -B -m pytest -q -p no:cacheprovider --junitxml=../junit-app.xml) || rc=1; \
+	npm --prefix web test || rc=1; \
+	python3 -I -B scripts/junit_merge.py junit.xml junit-workflow.xml junit-app.xml web/junit-web.xml || rc=1; \
+	exit $$rc
 
 # Formatting the SDLC workflow runs at the code stage (it doesn't run lint: CI does, tflint isn't local).
 fmt:
