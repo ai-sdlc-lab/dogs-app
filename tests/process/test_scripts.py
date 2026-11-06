@@ -175,3 +175,20 @@ def test_final_pr_body_lists_untracked_debt_and_open_questions(tmp_path):
     assert "#65 SR-001 [medium] 404 not 422" in top.split("not tracked")[0]
     assert "SR-007 [info] shared concurrency" in top.split("not tracked")[1]
     assert "SPEC-0007.md: Is failure logging wanted?" in top and "not a question" not in top and "None that block" not in top
+
+
+def test_junit_merge_refuses_entities_and_merges_suites(tmp_path):
+    """Kit extraction: PR-controlled JUnit files are merged without DOCTYPE/entity parsing (Semgrep alert #12)."""
+    import subprocess
+    import sys
+
+    from conftest import ROOT
+
+    ok = tmp_path / "a.xml"
+    ok.write_text('<testsuites><testsuite name="a"><testcase name="test_a"/></testsuite></testsuites>')
+    bomb = tmp_path / "b.xml"
+    bomb.write_text('<!DOCTYPE x [<!ENTITY e "e">]><testsuite name="b"><testcase name="&e;"/></testsuite>')
+    out = tmp_path / "junit.xml"
+    run = lambda *f: subprocess.run([sys.executable, "-I", "-B", str(ROOT / "scripts/junit_merge.py"), str(out), *map(str, f)])  # noqa: E731
+    assert run(ok, bomb).returncode != 0
+    assert run(ok).returncode == 0 and 'name="test_a"' in out.read_text()
