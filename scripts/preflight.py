@@ -69,6 +69,11 @@ def settings_problems(root: Path = ROOT) -> list[str]:
     for rule in REQUIRED_DENY:
         if rule not in perms.get("deny", []):
             out.append(f"missing deny rule {rule}")
+    sb = s.get("sandbox", {})
+    want = {"enabled": True, "failIfUnavailable": True, "allowUnsandboxedCommands": False, "excludedCommands": []}
+    if any(sb.get(k, "unset") != v for k, v in want.items()) or "~/" not in sb.get("filesystem", {}).get("denyRead", []):
+        out.append("the sandbox must be on with no escape (lab-admin #23): enabled, failIfUnavailable, "
+                   "allowUnsandboxedCommands false, no excludedCommands, denyRead ~/")
     return out
 
 

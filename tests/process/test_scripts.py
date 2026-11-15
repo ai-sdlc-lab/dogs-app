@@ -129,6 +129,20 @@ def test_preflight_hook_self_test_passes():
     assert preflight.settings_problems() == []
 
 
+def test_preflight_refuses_weakened_sandbox(tmp_path):
+    from conftest import ROOT
+
+    s = json.loads((ROOT / ".claude/settings.json").read_text())
+    (tmp_path / ".claude").mkdir()
+    for key, bad in (("allowUnsandboxedCommands", True), ("excludedCommands", ["git push *"]), ("enabled", False)):
+        weak = {**s, "sandbox": {**s["sandbox"], key: bad}}
+        (tmp_path / ".claude/settings.json").write_text(json.dumps(weak))
+        assert any("sandbox" in p for p in preflight.settings_problems(tmp_path)), key
+    del s["sandbox"]
+    (tmp_path / ".claude/settings.json").write_text(json.dumps(s))
+    assert any("sandbox" in p for p in preflight.settings_problems(tmp_path))
+
+
 def test_stage_log_prune_survives_naive_timestamps(tmp_path):
     log = tmp_path / "l.jsonl"
     log.write_text(json.dumps({"ts": "2026-01-01T00:00:00"}) + "\n")

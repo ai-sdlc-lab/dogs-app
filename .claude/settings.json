@@ -1,5 +1,20 @@
 {
   "model": "claude-sonnet-5-5",
+  "sandbox": {
+    "enabled": true,
+    "failIfUnavailable": true,
+    "allowUnsandboxedCommands": false,
+    "autoAllowBashIfSandboxed": true,
+    "excludedCommands": [],
+    "filesystem": {
+      "denyRead": ["~/"],
+      "allowRead": [".", "~/.gitconfig", "~/.config/gh", "~/.npm", "~/Library/Caches/pip"],
+      "allowWrite": ["~/.npm", "~/Library/Caches/pip"]
+    },
+    "network": {
+      "allowedDomains": ["github.com", "api.github.com", "*.githubusercontent.com", "pypi.org", "files.pythonhosted.org", "registry.npmjs.org"]
+    }
+  },
   "hooks": {
     "PreToolUse": [
       {
